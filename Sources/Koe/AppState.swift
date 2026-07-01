@@ -299,14 +299,16 @@ final class AppState: ObservableObject {
         // 履歴は finishRecording(音声入力)と refine 成功時(変換結果)で保存済み
 
         let result = Paster.deliver(refined, paste: s.autoPaste, keepInClipboard: s.keepInClipboard)
-        playSound("Bottle")
 
         switch result {
         case .pasted, .copiedOnly:
+            playSound("Bottle")
             dismiss()
         case .needsAccessibility:
+            // 失敗が分かる音を鳴らし、案内を読める長さだけ表示してから閉じる
+            playSound("Basso")
             statusMessage = result.message
-            dismissAfter(2.2)
+            dismissAfter(4.0)
         }
     }
 

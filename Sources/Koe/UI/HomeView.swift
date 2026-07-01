@@ -123,9 +123,12 @@ struct HomeView: View {
                 title: tr("アクセシビリティ", "Accessibility"),
                 detail: axTrusted
                     ? tr("許可済み", "Granted")
-                    : tr("自動貼り付けに必要です(任意)。許可しても反映されない場合は、システム設定の一覧から Koe を −(マイナス)で削除してから許可し直してください", "Required for auto-paste (optional). If granting doesn't take effect, remove Koe from the list in System Settings using the minus (−) button, then grant access again."),
+                    : tr("自動貼り付けに必要です(任意)。ボタンを押すと古い登録を自動でリセットしてから許可を求めます", "Required for auto-paste (optional). Pressing the button clears any stale registration before requesting access."),
                 actionLabel: tr("許可する", "Allow")
             ) {
+                // 再ビルド等で無効化された古い登録が残っていると、システム設定の
+                // トグルが ON でも実際には許可されない。先にリセットして自己修復する
+                Permissions.resetAccessibilityRegistration()
                 Permissions.requestAccessibility()
                 Permissions.openAccessibilitySettings()
             }

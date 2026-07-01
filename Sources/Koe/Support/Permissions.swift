@@ -67,6 +67,18 @@ enum Permissions {
         AXIsProcessTrustedWithOptions(options)
     }
 
+    /// アクセシビリティの TCC 登録をリセットする。
+    /// ad-hoc 署名では再ビルドのたびに登録が古いバイナリに紐づいたまま残り、
+    /// システム設定のトグルが ON でも実際には拒否される。許可し直す前に
+    /// 古い登録を消しておくことで「許可したのに効かない」状態を自己修復する。
+    static func resetAccessibilityRegistration() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        process.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.koe.voiceinput"]
+        try? process.run()
+        process.waitUntilExit()
+    }
+
     static func openSystemSettings(pane: String) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
             NSWorkspace.shared.open(url)
