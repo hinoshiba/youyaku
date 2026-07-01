@@ -12,6 +12,24 @@ enum Brand {
     static var recordingGradient: LinearGradient {
         LinearGradient(colors: [Color(hex: 0xFF4D6D), Color(hex: 0xFF8A5C)], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
+
+    // カード背景に使うシステム色(プラットフォームで名前が異なる)
+    static var cardFill: Color {
+        #if os(macOS)
+        return Color(nsColor: .controlBackgroundColor)
+        #else
+        return Color(uiColor: .secondarySystemBackground)
+        #endif
+    }
+
+    // テキスト入力欄などの背景色
+    static var fieldFill: Color {
+        #if os(macOS)
+        return Color(nsColor: .textBackgroundColor)
+        #else
+        return Color(uiColor: .tertiarySystemBackground)
+        #endif
+    }
 }
 
 extension Color {
@@ -33,7 +51,7 @@ struct CardBackground: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                    .fill(Brand.cardFill.opacity(0.6))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)

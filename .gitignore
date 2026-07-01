@@ -11,3 +11,7 @@ Vendor/
 
 # ローカル状態
 .claude/scheduled_tasks.lock
+
+# iOS ビルド成果物 / 生成プロジェクト
+ios/build/
+ios/Koe.xcodeproj/

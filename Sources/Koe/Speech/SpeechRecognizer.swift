@@ -130,6 +130,12 @@ final class SpeechRecognizer: ObservableObject {
 
     // マイク入力のタップを張り、オーディオエンジンを開始する
     private func startAudio() throws {
+        #if os(iOS)
+        // iOS では録音の前にオーディオセッションを構成する必要がある
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        #endif
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else {
@@ -337,6 +343,10 @@ final class SpeechRecognizer: ObservableObject {
         setTapRequest(nil)
         engine.stop()
         level = 0
+        #if os(iOS)
+        // 他アプリの音声を元に戻すため、録音セッションを解除する
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 
     private func handle(_ result: SFSpeechRecognitionResult?, _ error: Error?, generation: Int) {

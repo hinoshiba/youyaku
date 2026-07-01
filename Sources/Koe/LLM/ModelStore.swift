@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 
 struct LocalModel: Identifiable, Hashable {
     var fileName: String
@@ -110,8 +113,18 @@ final class ModelStore: NSObject, ObservableObject {
         refresh()
     }
 
+    var canRevealInFinder: Bool {
+        #if os(macOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
     func revealInFinder() {
+        #if os(macOS)
         NSWorkspace.shared.activateFileViewerSelecting([Self.directory])
+        #endif
     }
 
     // MARK: - 完了処理(デリゲートから)
@@ -147,8 +160,6 @@ final class ModelStore: NSObject, ObservableObject {
         }
     }
 }
-
-import AppKit
 
 extension ModelStore: URLSessionDownloadDelegate {
     nonisolated func urlSession(
