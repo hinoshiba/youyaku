@@ -39,6 +39,7 @@ final class AppState: ObservableObject {
     private var dismissWork: DispatchWorkItem?
     private var isStopping = false
     private var sessionHistoryID: UUID?   // このセッションの履歴エントリ(音声入力を先に保存)
+    private var sessionLocaleID = "ja-JP" // 録音時の認識言語(整形プロンプトの言語をこれに合わせる)
     private var cancellables: Set<AnyCancellable> = []
 
     private init() {}
@@ -151,12 +152,14 @@ final class AppState: ObservableObject {
             }
             do {
                 let s = settings.value
+                sessionLocaleID = s.localeID   // この録音で使う言語を固定(整形もこの言語で行う)
                 try speech.start(SpeechRecognizer.Config(
                     locale: Locale(identifier: s.localeID),
                     preferOnDevice: s.preferOnDevice,
                     punctuation: s.punctuation,
                     vocabulary: s.vocabularyList,
-                    autoStopAfter: s.autoStop ? s.autoStopSeconds : nil
+                    autoStopAfter: s.autoStop ? s.autoStopSeconds : nil,
+                    inputDeviceUID: s.inputDeviceUID
                 ), resumingFrom: base)
                 phase = .recording
                 hud.show()
@@ -246,7 +249,7 @@ final class AppState: ObservableObject {
             }
             let (system, user) = Refiner.prompts(
                 mode: s.refineMode, premise: s.activePremise,
-                transcript: transcript, modelHint: file, localeID: s.localeID
+                transcript: transcript, modelHint: file, localeID: sessionLocaleID
             )
             stream = llamaEngine.chatStream(
                 modelPath: local.fileURL.path,
@@ -263,7 +266,7 @@ final class AppState: ObservableObject {
             }
             let (system, user) = Refiner.prompts(
                 mode: s.refineMode, premise: s.activePremise,
-                transcript: transcript, modelHint: s.model, localeID: s.localeID
+                transcript: transcript, modelHint: s.model, localeID: sessionLocaleID
             )
             stream = ollama.chatStream(
                 model: s.model,

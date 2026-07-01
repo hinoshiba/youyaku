@@ -1,5 +1,9 @@
 import AVFoundation
 import Speech
+#if os(macOS)
+import CoreAudio
+import AudioToolbox
+#endif
 
 struct KoeError: LocalizedError {
     let message: String
@@ -84,6 +88,7 @@ final class SpeechRecognizer: ObservableObject {
         var punctuation: Bool
         var vocabulary: [String]
         var autoStopAfter: TimeInterval?
+        var inputDeviceUID: String? = nil   // 使用するマイク(nil = システム標準)。macOS のみ
     }
 
     var supportsOnDevice: Bool {
@@ -135,6 +140,11 @@ final class SpeechRecognizer: ObservableObject {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+        #endif
+        #if os(macOS)
+        // 指定されたマイクを AUHAL に設定する(nil ならシステム標準のまま)。
+        // フォーマット取得前に設定する必要がある
+        applyInputDevice(activeConfig?.inputDeviceUID)
         #endif
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
@@ -226,6 +236,31 @@ final class SpeechRecognizer: ObservableObject {
         tapRequest = req
         tapLock.unlock()
     }
+
+    #if os(macOS)
+    // 指定 UID のマイクを AVAudioEngine の入力(AUHAL)に設定する。
+    // engine は使い回すため AUHAL のデバイス指定は stop/start をまたいで残る。
+    // uid が nil(システム標準)や解決不能の場合は、前回の特定マイク指定を
+    // 打ち消すために OS の既定入力デバイスへ明示的に戻す。
+    private func applyInputDevice(_ uid: String?) {
+        guard let unit = engine.inputNode.audioUnit else { return }
+        var deviceID: AudioDeviceID
+        if let uid, let resolved = AudioDevices.deviceID(forUID: uid) {
+            deviceID = resolved
+        } else {
+            guard let def = AudioDevices.systemDefaultInputDevice() else { return }
+            deviceID = def
+        }
+        AudioUnitSetProperty(
+            unit,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &deviceID,
+            UInt32(MemoryLayout<AudioDeviceID>.size)
+        )
+    }
+    #endif
 
     // 確定済みテキストを保ったまま、新しい認識タスクで継続する
     private func restartRecognition() {

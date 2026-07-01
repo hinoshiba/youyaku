@@ -40,7 +40,29 @@ struct DictateView: View {
                 chip(premise.name, "doc.text")
             }
             Spacer()
+            languageMenu
         }
+    }
+
+    // 認識言語をこの画面から直接切り替えられるメニュー
+    private var languageMenu: some View {
+        Menu {
+            Picker(tr("認識言語", "Recognition language"), selection: $app.config.localeID) {
+                ForEach(AppSettings.speechLocales) { Text($0.label).tag($0.id) }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "globe").font(.system(size: 10, weight: .semibold))
+                Text(app.settings.value.speechLocaleLabel)
+                    .font(.system(size: 11, weight: .medium))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(Brand.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Brand.primary.opacity(0.12)))
+        }
+        .disabled(app.phase == .recording || app.phase == .refining)
     }
 
     private func chip(_ text: String, _ icon: String) -> some View {

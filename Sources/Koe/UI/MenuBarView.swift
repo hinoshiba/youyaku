@@ -123,6 +123,26 @@ struct MenuBarView: View {
                 }
             }
             HStack {
+                Label(tr("言語", "Language"), systemImage: "globe")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker("", selection: $app.config.localeID) {
+                    ForEach(AppSettings.speechLocales) { Text($0.label).tag($0.id) }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 180)
+                .disabled(app.phase == .recording || app.phase == .refining)
+            }
+            HStack {
+                Label(tr("マイク", "Microphone"), systemImage: "mic")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                MicrophonePicker()
+                    .frame(maxWidth: 190)
+            }
+            HStack {
                 Label(tr("前提", "Context"), systemImage: "doc.text")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

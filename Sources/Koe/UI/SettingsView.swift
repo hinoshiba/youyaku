@@ -181,13 +181,14 @@ struct SettingsView: View {
 
             settingRow(tr("言語", "Language")) {
                 Picker("", selection: $app.config.localeID) {
-                    Text("日本語").tag("ja-JP")
-                    Text("English (US)").tag("en-US")
-                    Text("中文(简体)").tag("zh-CN")
-                    Text("한국어").tag("ko-KR")
+                    ForEach(AppSettings.speechLocales) { Text($0.label).tag($0.id) }
                 }
                 .labelsHidden()
                 .frame(maxWidth: 180)
+            }
+
+            settingRow(tr("マイク", "Microphone"), help: tr("録音に使う入力デバイスを選べます。次回の録音から反映されます", "Choose the input device for recording. Applies to your next recording.")) {
+                MicrophonePicker()
             }
 
             settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("ネットワークに音声を送らず、Mac 内で処理します", "Processes audio on your Mac without sending it over the network")) {
@@ -604,5 +605,31 @@ struct HotkeyRecorderView: View {
             NSEvent.removeMonitor(monitor)
         }
         monitor = nil
+    }
+}
+
+// MARK: - マイク選択
+
+struct MicrophonePicker: View {
+    @EnvironmentObject var app: AppState
+    @State private var devices: [MicDevice] = []
+
+    var body: some View {
+        Picker("", selection: $app.config.inputDeviceUID) {
+            Text(tr("システム標準", "System Default")).tag(String?.none)
+            // 保存済みだが現在は見つからないデバイス(未接続)も選択肢として残す
+            if let uid = app.settings.value.inputDeviceUID,
+               !devices.contains(where: { $0.uid == uid }) {
+                Text(tr("\(AudioDevices.name(forUID: uid) ?? "未接続のマイク")(未接続)",
+                        "\(AudioDevices.name(forUID: uid) ?? "Disconnected mic") (unavailable)"))
+                    .tag(String?.some(uid))
+            }
+            ForEach(devices) { device in
+                Text(device.name).tag(String?.some(device.uid))
+            }
+        }
+        .labelsHidden()
+        .frame(maxWidth: 220)
+        .onAppear { devices = AudioDevices.inputDevices() }
     }
 }

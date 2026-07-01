@@ -76,10 +76,7 @@ struct SettingsView: View {
     private var speechSection: some View {
         Section(tr("音声認識", "Speech recognition")) {
             Picker(tr("言語", "Language"), selection: $app.config.localeID) {
-                Text("日本語").tag("ja-JP")
-                Text("English (US)").tag("en-US")
-                Text("中文(简体)").tag("zh-CN")
-                Text("한국어").tag("ko-KR")
+                ForEach(AppSettings.speechLocales) { Text($0.label).tag($0.id) }
             }
             Toggle(tr("オンデバイス認識を優先", "Prefer on-device"), isOn: $app.config.preferOnDevice)
             Toggle(tr("句読点を自動挿入", "Auto punctuation"), isOn: $app.config.punctuation)

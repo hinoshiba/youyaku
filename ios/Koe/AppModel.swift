@@ -32,6 +32,7 @@ final class AppModel: ObservableObject {
     private var refineTask: Task<Void, Never>?
     private var isStopping = false
     private var sessionHistoryID: UUID?
+    private var sessionLocaleID = "ja-JP"   // 録音時の認識言語(整形もこの言語で行う)
     private var cancellables: Set<AnyCancellable> = []
 
     private init() {
@@ -114,6 +115,7 @@ final class AppModel: ObservableObject {
             }
             do {
                 let s = settings.value
+                sessionLocaleID = s.localeID   // この録音で使う言語を固定
                 try speech.start(SpeechRecognizer.Config(
                     locale: Locale(identifier: s.localeID),
                     preferOnDevice: s.preferOnDevice,
@@ -184,7 +186,7 @@ final class AppModel: ObservableObject {
 
         let (system, user) = Refiner.prompts(
             mode: s.refineMode, premise: s.activePremise,
-            transcript: transcript, modelHint: file, localeID: s.localeID
+            transcript: transcript, modelHint: file, localeID: sessionLocaleID
         )
         let stream = llamaEngine.chatStream(
             modelPath: local.fileURL.path, system: system, user: user, temperature: s.temperature

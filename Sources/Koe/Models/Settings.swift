@@ -134,6 +134,7 @@ struct AppSettings: Codable {
 
     // 音声認識
     var localeID = "ja-JP"
+    var inputDeviceUID: String? = nil    // 使用するマイク(nil = システム標準)。macOS のみ
     var preferOnDevice = true
     var punctuation = true
     var vocabulary = ""                  // レガシー(旧カンマ区切り形式)。初回移行後は未使用
@@ -176,6 +177,28 @@ struct AppSettings: Codable {
         premises.first { $0.id == activePremiseID }
     }
 
+    // 認識言語の候補(設定・ツールバー・iOS音声入力画面で共通利用)
+    struct SpeechLocaleOption: Identifiable, Hashable {
+        let id: String      // localeID
+        let label: String   // 各言語での名称(自言語表記)
+        let short: String   // ツールバー等の省スペース表示
+    }
+
+    static let speechLocales: [SpeechLocaleOption] = [
+        .init(id: "ja-JP", label: "日本語", short: "あ"),
+        .init(id: "en-US", label: "English (US)", short: "EN"),
+        .init(id: "zh-CN", label: "中文(简体)", short: "中"),
+        .init(id: "ko-KR", label: "한국어", short: "한"),
+    ]
+
+    var speechLocaleLabel: String {
+        Self.speechLocales.first { $0.id == localeID }?.label ?? localeID
+    }
+
+    var speechLocaleShort: String {
+        Self.speechLocales.first { $0.id == localeID }?.short ?? localeID
+    }
+
     // UI 表示用のモデル名(HUD のチップ等)
     var activeModelLabel: String {
         switch engine {
@@ -197,6 +220,7 @@ struct AppSettings: Codable {
         hotkey = (try? c.decodeIfPresent(KeyCombo.self, forKey: .hotkey)) ?? d.hotkey
         uiLanguage = (try? c.decodeIfPresent(AppLanguage.self, forKey: .uiLanguage)) ?? d.uiLanguage
         localeID = (try? c.decodeIfPresent(String.self, forKey: .localeID)) ?? d.localeID
+        inputDeviceUID = (try? c.decodeIfPresent(String.self, forKey: .inputDeviceUID)) ?? d.inputDeviceUID
         preferOnDevice = (try? c.decodeIfPresent(Bool.self, forKey: .preferOnDevice)) ?? d.preferOnDevice
         punctuation = (try? c.decodeIfPresent(Bool.self, forKey: .punctuation)) ?? d.punctuation
         vocabulary = (try? c.decodeIfPresent(String.self, forKey: .vocabulary)) ?? d.vocabulary
