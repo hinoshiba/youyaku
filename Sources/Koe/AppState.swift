@@ -165,7 +165,7 @@ final class AppState: ObservableObject {
         transcript = text
 
         guard !text.isEmpty else {
-            phase = .error("音声を聞き取れませんでした。もう一度お試しください。")
+            phase = .error(tr("音声を聞き取れませんでした。もう一度お試しください。", "Nothing was heard. Please try again."))
             return
         }
 
@@ -205,13 +205,13 @@ final class AppState: ObservableObject {
             guard let file = s.builtinModelFile,
                   let local = modelStore.installed.first(where: { $0.fileName == file }) else {
                 refined = transcript
-                statusMessage = "LLM モデルが未設定のため、認識結果をそのまま表示しています(「モデル」画面からダウンロードできます)"
+                statusMessage = tr("LLM モデルが未設定のため、認識結果をそのまま表示しています(「モデル」画面からダウンロードできます)", "No LLM model is set, so the raw transcription is shown. (You can download one from the Models screen.)")
                 phase = .result
                 return
             }
             let (system, user) = Refiner.prompts(
                 mode: s.refineMode, premise: s.activePremise,
-                transcript: transcript, modelHint: file
+                transcript: transcript, modelHint: file, localeID: s.localeID
             )
             stream = llamaEngine.chatStream(
                 modelPath: local.fileURL.path,
@@ -222,13 +222,13 @@ final class AppState: ObservableObject {
         case .ollama:
             guard ollama.status.isRunning else {
                 refined = transcript
-                statusMessage = "Ollama が起動していないため、認識結果をそのまま表示しています"
+                statusMessage = tr("Ollama が起動していないため、認識結果をそのまま表示しています", "Ollama is not running, so the raw transcription is shown.")
                 phase = .result
                 return
             }
             let (system, user) = Refiner.prompts(
                 mode: s.refineMode, premise: s.activePremise,
-                transcript: transcript, modelHint: s.model
+                transcript: transcript, modelHint: s.model, localeID: s.localeID
             )
             stream = ollama.chatStream(
                 model: s.model,
@@ -259,7 +259,7 @@ final class AppState: ObservableObject {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if self.refined.isEmpty {
                     self.refined = self.transcript
-                    self.statusMessage = "整形結果が空だったため、認識結果をそのまま表示しています"
+                    self.statusMessage = tr("整形結果が空だったため、認識結果をそのまま表示しています", "The refined result was empty, so the raw transcription is shown.")
                 } else {
                     self.recordRefinedToHistory()
                 }
@@ -270,7 +270,7 @@ final class AppState: ObservableObject {
             } catch {
                 guard self.phase == .refining else { return }
                 self.refined = self.transcript
-                self.statusMessage = "整形に失敗したため原文を表示(\(modelLabel)): \(error.localizedDescription)"
+                self.statusMessage = tr("整形に失敗したため原文を表示(\(modelLabel)): \(error.localizedDescription)", "Refinement failed; showing the original text (\(modelLabel)): \(error.localizedDescription)")
                 self.phase = .result
             }
         }
@@ -286,7 +286,7 @@ final class AppState: ObservableObject {
         refineTask = nil
         if phase == .refining {
             refined = transcript
-            statusMessage = "整形を中断しました"
+            statusMessage = tr("整形を中断しました", "Refinement canceled")
             phase = .result
         }
     }
@@ -313,7 +313,7 @@ final class AppState: ObservableObject {
     func copyOnly() {
         guard phase == .result else { return }
         _ = Paster.deliver(refined, paste: false, keepInClipboard: true)
-        statusMessage = "コピーしました"
+        statusMessage = tr("コピーしました", "Copied")
         dismissAfter(1.2)
     }
 

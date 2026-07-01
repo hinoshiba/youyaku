@@ -113,12 +113,12 @@ final class LlamaEngine: @unchecked Sendable {
             self.loadedPath = nil
         }
         guard FileManager.default.fileExists(atPath: path) else {
-            throw KoeError("モデルファイルが見つかりません: \(path)")
+            throw KoeError(tr("モデルファイルが見つかりません: \(path)", "Model file not found: \(path)"))
         }
         var params = llama_model_default_params()
         params.n_gpu_layers = -1 // 全レイヤーを GPU(Metal)へ
         guard let loaded = llama_model_load_from_file(path, params) else {
-            throw KoeError("モデルの読み込みに失敗しました。ファイルが壊れている可能性があります。")
+            throw KoeError(tr("モデルの読み込みに失敗しました。ファイルが壊れている可能性があります。", "Failed to load the model. The file may be corrupted."))
         }
         model = loaded
         loadedPath = path
@@ -137,7 +137,7 @@ final class LlamaEngine: @unchecked Sendable {
         lastUsed = Date()
         let model = try ensureModel(at: modelPath)
         guard let vocab = llama_model_get_vocab(model) else {
-            throw KoeError("モデルの語彙を取得できません")
+            throw KoeError(tr("モデルの語彙を取得できません", "Could not read the model vocabulary"))
         }
 
         let prompt = buildPrompt(model: model, system: system, user: user)
@@ -149,13 +149,13 @@ final class LlamaEngine: @unchecked Sendable {
             llama_tokenize(vocab, cstr, Int32(promptBytes.count), &tokens, Int32(tokens.count), true, true)
         }
         guard nTokens > 0 else {
-            throw KoeError("プロンプトのトークナイズに失敗しました")
+            throw KoeError(tr("プロンプトのトークナイズに失敗しました", "Failed to tokenize the prompt"))
         }
         tokens.removeLast(tokens.count - Int(nTokens))
 
         let nCtx: UInt32 = 4096
         guard Int(nTokens) < Int(nCtx) - 256 else {
-            throw KoeError("前提や入力が長すぎます。前提プリセットを短くしてください。")
+            throw KoeError(tr("前提や入力が長すぎます。前提プリセットを短くしてください。", "The context or input is too long. Try shortening your context preset."))
         }
 
         // コンテキスト(生成ごとに作成・破棄)
@@ -166,7 +166,7 @@ final class LlamaEngine: @unchecked Sendable {
         cparams.n_threads = Int32(max(4, cores - 2))
         cparams.n_threads_batch = Int32(cores)
         guard let ctx = llama_init_from_model(model, cparams) else {
-            throw KoeError("推論コンテキストの作成に失敗しました(メモリ不足の可能性)")
+            throw KoeError(tr("推論コンテキストの作成に失敗しました(メモリ不足の可能性)", "Failed to create the inference context (possibly out of memory)"))
         }
         defer { llama_free(ctx) }
 
@@ -187,7 +187,7 @@ final class LlamaEngine: @unchecked Sendable {
             return llama_decode(ctx, batch) == 0
         }
         guard promptOK else {
-            throw KoeError("プロンプトの評価に失敗しました")
+            throw KoeError(tr("プロンプトの評価に失敗しました", "Failed to evaluate the prompt"))
         }
 
         // 生成ループ(KV キャッシュの残り容量を超えないよう上限をクランプ)
@@ -220,7 +220,7 @@ final class LlamaEngine: @unchecked Sendable {
                 return llama_decode(ctx, batch) == 0
             }
             guard decodeOK else {
-                throw KoeError("生成中にデコードエラーが発生しました")
+                throw KoeError(tr("生成中にデコードエラーが発生しました", "A decoding error occurred during generation"))
             }
             generated += 1
         }

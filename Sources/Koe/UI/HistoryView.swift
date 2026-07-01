@@ -30,7 +30,7 @@ struct HistoryView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
-                    TextField("履歴を検索", text: $query)
+                    TextField(tr("履歴を検索", "Search history"), text: $query)
                         .textFieldStyle(.plain)
                 }
                 .padding(.horizontal, 10)
@@ -43,7 +43,7 @@ struct HistoryView: View {
                     Button(role: .destructive) {
                         app.history.clear()
                     } label: {
-                        Label("すべて削除", systemImage: "trash")
+                        Label(tr("すべて削除", "Delete All"), systemImage: "trash")
                             .font(.system(size: 12))
                     }
                 }
@@ -73,11 +73,11 @@ struct HistoryView: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
-            Text(query.isEmpty ? "まだ履歴がありません" : "「\(query)」に一致する履歴はありません")
+            Text(query.isEmpty ? tr("まだ履歴がありません", "No history yet") : tr("「\(query)」に一致する履歴はありません", "No history matching \"\(query)\""))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
             if query.isEmpty {
-                Text("\(app.settings.value.hotkey.display) で音声入力を始めましょう")
+                Text(tr("\(app.settings.value.hotkey.display) で音声入力を始めましょう", "Press \(app.settings.value.hotkey.display) to start dictating"))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
@@ -104,7 +104,7 @@ struct HistoryView: View {
                 if hasRefined {
                     Chip(text: entry.mode.label, icon: entry.mode.icon, tint: Brand.secondary)
                 } else {
-                    Chip(text: "音声のみ", icon: "mic", tint: .orange)
+                    Chip(text: tr("音声のみ", "Voice Only"), icon: "mic", tint: .orange)
                 }
                 if entry.model != "-" {
                     Chip(text: entry.model, icon: "cpu", tint: .secondary)
@@ -117,7 +117,7 @@ struct HistoryView: View {
                         if copiedID == entry.id { copiedID = nil }
                     }
                 } label: {
-                    Label(copiedID == entry.id ? "コピーしました" : "コピー",
+                    Label(copiedID == entry.id ? tr("コピーしました", "Copied") : tr("コピー", "Copy"),
                           systemImage: copiedID == entry.id ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 11))
                 }
@@ -131,7 +131,7 @@ struct HistoryView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("削除")
+                .help(tr("削除", "Delete"))
             }
 
             Text(mainText)
@@ -144,7 +144,7 @@ struct HistoryView: View {
             if showsRaw {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text("音声入力")
+                        Text(tr("音声入力", "Dictation"))
                             .font(.system(size: 9.5, weight: .semibold))
                             .foregroundStyle(.tertiary)
                         Button {
@@ -155,7 +155,7 @@ struct HistoryView: View {
                                 .foregroundStyle(.tertiary)
                         }
                         .buttonStyle(.plain)
-                        .help("音声入力をコピー")
+                        .help(tr("音声入力をコピー", "Copy Dictation"))
                     }
                     Text(entry.raw)
                         .font(.system(size: 11))
@@ -173,7 +173,7 @@ struct HistoryView: View {
                         expandedIDs.insert(entry.id)
                     }
                 } label: {
-                    Label(expanded ? "折りたたむ" : "すべて表示",
+                    Label(expanded ? tr("折りたたむ", "Collapse") : tr("すべて表示", "Show All"),
                           systemImage: expanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 10.5))
                 }

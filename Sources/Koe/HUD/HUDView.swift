@@ -95,10 +95,10 @@ struct HUDView: View {
 
     private var phaseTitle: String {
         switch app.phase {
-        case .recording: return "聞き取り中"
-        case .refining: return "整理しています…"
-        case .result: return "できました"
-        case .error: return "エラー"
+        case .recording: return tr("聞き取り中", "Listening")
+        case .refining: return tr("整理しています…", "Refining…")
+        case .result: return tr("できました", "Done")
+        case .error: return tr("エラー", "Error")
         case .idle: return ""
         }
     }
@@ -112,7 +112,7 @@ struct HUDView: View {
             VStack(spacing: 14) {
                 transcriptScroll(
                     text: app.speech.partial,
-                    placeholder: "どうぞ、お話しください…",
+                    placeholder: tr("どうぞ、お話しください…", "Go ahead, speak…"),
                     font: .system(size: 17, weight: .regular),
                     color: .primary
                 )
@@ -128,7 +128,7 @@ struct HUDView: View {
                 Divider()
                 transcriptScroll(
                     text: app.refined,
-                    placeholder: "ローカルLLMが指示文を整理しています…",
+                    placeholder: tr("ローカルLLMが指示文を整理しています…", "The local LLM is refining your prompt…"),
                     font: .system(size: 16),
                     color: .primary
                 )
@@ -158,8 +158,8 @@ struct HUDView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 10) {
-                    Button("マイク設定を開く") { Permissions.openMicrophoneSettings() }
-                    Button("音声認識設定を開く") { Permissions.openSpeechSettings() }
+                    Button(tr("マイク設定を開く", "Open Microphone Settings")) { Permissions.openMicrophoneSettings() }
+                    Button(tr("音声認識設定を開く", "Open Speech Recognition Settings")) { Permissions.openSpeechSettings() }
                 }
                 .controlSize(.small)
                 Spacer()
@@ -199,20 +199,20 @@ struct HUDView: View {
         HStack(spacing: 14) {
             switch app.phase {
             case .recording:
-                keyHint("↩", "整形して確定")
-                keyHint(app.settings.value.hotkey.display, "停止")
-                keyHint("esc", "キャンセル")
+                keyHint("↩", tr("整形して確定", "Refine & Confirm"))
+                keyHint(app.settings.value.hotkey.display, tr("停止", "Stop"))
+                keyHint("esc", tr("キャンセル", "Cancel"))
             case .refining:
-                keyHint("esc", "中断")
+                keyHint("esc", tr("中断", "Cancel"))
             case .result:
-                keyHint("↩", app.settings.value.autoPaste ? "貼り付け" : "コピー")
-                keyHint("⌘C", "コピーのみ")
+                keyHint("↩", app.settings.value.autoPaste ? tr("貼り付け", "Paste") : tr("コピー", "Copy"))
+                keyHint("⌘C", tr("コピーのみ", "Copy Only"))
                 if app.settings.value.refineMode != .raw {
-                    keyHint("⌘R", "整形をやり直す")
+                    keyHint("⌘R", tr("整形をやり直す", "Refine Again"))
                 }
-                keyHint("esc", "閉じる")
+                keyHint("esc", tr("閉じる", "Close"))
             case .error:
-                keyHint("esc", "閉じる")
+                keyHint("esc", tr("閉じる", "Close"))
             case .idle:
                 EmptyView()
             }

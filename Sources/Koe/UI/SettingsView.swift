@@ -55,9 +55,9 @@ struct SettingsView: View {
 
     private var shortcutSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("ショートカット", "どのアプリからでも音声入力を呼び出せます")
+            sectionHeader(tr("ショートカット", "Shortcut"), tr("どのアプリからでも音声入力を呼び出せます", "Start dictation from any app"))
 
-            settingRow("音声入力の開始 / 停止", help: "枠をクリックして好きなキーを入力(修飾キー、またはF1〜F20)") {
+            settingRow(tr("音声入力の開始 / 停止", "Start / Stop Dictation"), help: tr("枠をクリックして好きなキーを入力(修飾キー、またはF1〜F20)", "Click the field, then press a key (modifier combo, or F1–F20)")) {
                 HStack(spacing: 8) {
                     HotkeyRecorderView(combo: app.settings.value.hotkey) { newCombo in
                         app.updateHotkey(newCombo)
@@ -69,13 +69,14 @@ struct SettingsView: View {
                             Image(systemName: "arrow.uturn.backward")
                         }
                         .buttonStyle(.borderless)
-                        .help("デフォルト(⌥Space)に戻す")
+                        .help(tr("デフォルト(⌥Space)に戻す", "Reset to default (⌥Space)"))
                     }
                 }
             }
 
             if !app.hotkeyActive {
-                Label("この組み合わせは他のアプリやシステムと競合しているため登録できませんでした。別のキーをお試しください(直前のショートカットは有効なままです)。",
+                Label(tr("この組み合わせは他のアプリやシステムと競合しているため登録できませんでした。別のキーをお試しください(直前のショートカットは有効なままです)。",
+                         "This combination conflicts with another app or the system and couldn't be registered. Please try a different key (your previous shortcut is still active)."),
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
@@ -83,7 +84,7 @@ struct SettingsView: View {
             }
 
             HStack(spacing: 8) {
-                Text("候補:")
+                Text(tr("候補:", "Suggestions:"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 ForEach(Self.presets, id: \.display) { preset in
@@ -124,8 +125,9 @@ struct SettingsView: View {
     private var premiseSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader(
-                "前提プリセット",
-                "命令を整理するときに考慮させる背景情報です。プロジェクトや用途ごとに切り替えられます。"
+                tr("前提プリセット", "Context Presets"),
+                tr("命令を整理するときに考慮させる背景情報です。プロジェクトや用途ごとに切り替えられます。",
+                   "Background information considered when refining your prompt. Switch between presets per project or use case.")
             )
             PremiseEditorView()
         }
@@ -137,9 +139,9 @@ struct SettingsView: View {
 
     private var refineSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("整形", "音声認識の結果をローカルLLMでどう処理するか")
+            sectionHeader(tr("整形", "Refinement"), tr("音声認識の結果をローカルLLMでどう処理するか", "How the local LLM processes speech recognition results"))
 
-            settingRow("既定のモード") {
+            settingRow(tr("既定のモード", "Default Mode")) {
                 Picker("", selection: $app.config.refineMode) {
                     ForEach(RefineMode.allCases) { mode in
                         Text(mode.label).tag(mode)
@@ -156,7 +158,7 @@ struct SettingsView: View {
 
             Divider().padding(.vertical, 6)
 
-            settingRow("創造性(temperature)", help: "低いほど忠実、高いほど言い換えが大胆になります") {
+            settingRow(tr("創造性(temperature)", "Creativity (Temperature)"), help: tr("低いほど忠実、高いほど言い換えが大胆になります", "Lower stays faithful to your words; higher allows bolder rewording")) {
                 HStack(spacing: 8) {
                     Slider(value: $app.config.temperature, in: 0...1, step: 0.05)
                         .frame(width: 160)
@@ -175,9 +177,9 @@ struct SettingsView: View {
 
     private var speechSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("音声認識", "認識は macOS 内蔵エンジンでデバイス上で行われます")
+            sectionHeader(tr("音声認識", "Speech Recognition"), tr("認識は macOS 内蔵エンジンでデバイス上で行われます", "Recognition runs on-device with the built-in macOS engine"))
 
-            settingRow("言語") {
+            settingRow(tr("言語", "Language")) {
                 Picker("", selection: $app.config.localeID) {
                     Text("日本語").tag("ja-JP")
                     Text("English (US)").tag("en-US")
@@ -188,25 +190,25 @@ struct SettingsView: View {
                 .frame(maxWidth: 180)
             }
 
-            settingRow("オンデバイス認識を優先", help: "ネットワークに音声を送らず、Mac 内で処理します") {
+            settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("ネットワークに音声を送らず、Mac 内で処理します", "Processes audio on your Mac without sending it over the network")) {
                 Toggle("", isOn: $app.config.preferOnDevice)
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
 
-            settingRow("句読点を自動挿入") {
+            settingRow(tr("句読点を自動挿入", "Auto-Insert Punctuation")) {
                 Toggle("", isOn: $app.config.punctuation)
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
 
-            settingRow("無音で自動停止", help: "話し終えると自動的に録音を止めます") {
+            settingRow(tr("無音で自動停止", "Auto-Stop on Silence"), help: tr("話し終えると自動的に録音を止めます", "Stops recording automatically when you finish speaking")) {
                 HStack(spacing: 10) {
                     if app.settings.value.autoStop {
                         Picker("", selection: $app.config.autoStopSeconds) {
-                            Text("1.5 秒").tag(1.5)
-                            Text("2 秒").tag(2.0)
-                            Text("3 秒").tag(3.0)
+                            Text(tr("1.5 秒", "1.5 sec")).tag(1.5)
+                            Text(tr("2 秒", "2 sec")).tag(2.0)
+                            Text(tr("3 秒", "3 sec")).tag(3.0)
                         }
                         .labelsHidden()
                         .frame(width: 90)
@@ -220,15 +222,19 @@ struct SettingsView: View {
             Divider().padding(.vertical, 6)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("認識辞書(専門用語)")
-                    .font(.system(size: 12.5))
-                Text("固有名詞や専門用語をカンマ区切りで登録すると、認識精度が上がります。")
+                HStack {
+                    Text(tr("認識辞書(固有名詞・専門用語)", "Vocabulary (Proper Nouns & Technical Terms)"))
+                        .font(.system(size: 12.5))
+                    Spacer()
+                    Text(tr("\(app.settings.value.vocabularyList.count) 語", "\(app.settings.value.vocabularyList.count) terms"))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                }
+                Text(tr("登録した用語は認識時に優先され、固有名詞の誤変換が減ります。",
+                        "Registered terms are prioritized during recognition, reducing misrecognition of proper nouns."))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
-                TextField("例: Kubernetes, リファクタリング, PostgreSQL", text: $app.config.vocabulary, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                    .font(.system(size: 12))
+                VocabularyEditorView()
             }
             .padding(.vertical, 6)
         }
@@ -240,27 +246,27 @@ struct SettingsView: View {
 
     private var outputSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("出力")
+            sectionHeader(tr("出力", "Output"))
 
-            settingRow("確定時にカーソル位置へ自動貼り付け", help: "アクセシビリティ権限が必要です") {
+            settingRow(tr("確定時にカーソル位置へ自動貼り付け", "Paste at Cursor on Confirm"), help: tr("アクセシビリティ権限が必要です", "Requires Accessibility permission")) {
                 Toggle("", isOn: $app.config.autoPaste)
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
 
-            settingRow("クリップボードに残す", help: "オフにすると貼り付け後に元のクリップボード内容を復元します") {
+            settingRow(tr("クリップボードに残す", "Keep in Clipboard"), help: tr("オフにすると貼り付け後に元のクリップボード内容を復元します", "When off, the previous clipboard contents are restored after pasting")) {
                 Toggle("", isOn: $app.config.keepInClipboard)
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
 
-            settingRow("整形後すぐに確定", help: "確認パネルを表示せず、整形が終わり次第すぐ貼り付けます") {
+            settingRow(tr("整形後すぐに確定", "Confirm Right After Refining"), help: tr("確認パネルを表示せず、整形が終わり次第すぐ貼り付けます", "Skips the confirmation panel and pastes as soon as refining finishes")) {
                 Toggle("", isOn: $app.config.instantPaste)
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
 
-            settingRow("効果音") {
+            settingRow(tr("効果音", "Sound Effects")) {
                 Toggle("", isOn: $app.config.sounds)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -274,9 +280,22 @@ struct SettingsView: View {
 
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("一般")
+            sectionHeader(tr("一般", "General"))
 
-            settingRow("ログイン時に起動") {
+            settingRow(tr("表示言語", "App Language"),
+                       help: tr("メニューや画面の表示言語です。整形結果の言語は「音声認識 > 言語」に追従します",
+                                "Language for menus and screens. The output language follows Speech Recognition > Language")) {
+                Picker("", selection: $app.config.uiLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.label).tag(lang)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 220)
+            }
+
+            settingRow(tr("ログイン時に起動", "Launch at Login")) {
                 Toggle("", isOn: $launchAtLogin)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -289,7 +308,7 @@ struct SettingsView: View {
                             }
                             loginItemError = nil
                         } catch {
-                            loginItemError = "設定に失敗しました: \(error.localizedDescription)"
+                            loginItemError = tr("設定に失敗しました: \(error.localizedDescription)", "Failed to change setting: \(error.localizedDescription)")
                             launchAtLogin = SMAppService.mainApp.status == .enabled
                         }
                     }
@@ -300,7 +319,7 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
 
-            settingRow("Ollama ホスト", help: "通常は変更不要です") {
+            settingRow(tr("Ollama ホスト", "Ollama Host"), help: tr("通常は変更不要です", "Usually doesn't need to be changed")) {
                 TextField("", text: $app.config.ollamaHost)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 11, design: .monospaced))
@@ -312,6 +331,97 @@ struct SettingsView: View {
         }
         .padding(18)
         .card()
+    }
+}
+
+// MARK: - 認識辞書エディタ
+
+struct VocabularyEditorView: View {
+    @EnvironmentObject var app: AppState
+    @State private var newTerm = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if app.settings.value.vocabularyTerms.isEmpty {
+                Text(tr("まだ用語がありません。下の欄から追加してください。",
+                        "No terms yet. Add one below."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 72)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(app.settings.value.vocabularyTerms.enumerated()), id: \.offset) { index, term in
+                            HStack(spacing: 8) {
+                                Image(systemName: "character.book.closed")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                                Text(term)
+                                    .font(.system(size: 12))
+                                    .lineLimit(1)
+                                Spacer()
+                                Button {
+                                    app.config.vocabularyTerms.remove(at: index)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(tr("削除", "Remove"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            if index < app.settings.value.vocabularyTerms.count - 1 {
+                                Divider().padding(.leading, 10)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 160)
+            }
+
+            Divider()
+
+            HStack(spacing: 8) {
+                TextField(tr("新しい用語(例: Kubernetes)。カンマ・改行区切りで一括追加も可",
+                             "New term (e.g. Kubernetes). Paste comma/newline-separated for bulk add"),
+                          text: $newTerm)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .onSubmit { addTerms() }
+                Button {
+                    addTerms()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(newTerm.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : Brand.primary)
+                }
+                .buttonStyle(.plain)
+                .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                .help(tr("追加", "Add"))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+        }
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.4))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.primary.opacity(0.08))
+        )
+    }
+
+    // 入力を用語に分解して追加(重複は除外)。カンマ・読点・改行での一括貼り付けに対応
+    private func addTerms() {
+        let terms = AppSettings.splitTerms(newTerm)
+        guard !terms.isEmpty else { return }
+        var existing = Set(app.settings.value.vocabularyTerms)
+        for term in terms where !existing.contains(term) {
+            app.config.vocabularyTerms.append(term)
+            existing.insert(term)
+        }
+        newTerm = ""
     }
 }
 
@@ -338,7 +448,7 @@ struct PremiseEditorView: View {
                                 .font(.system(size: 11))
                                 .foregroundStyle(preset.id == app.settings.value.activePremiseID
                                                  ? Brand.primary : .secondary)
-                            Text(preset.name.isEmpty ? "名称未設定" : preset.name)
+                            Text(preset.name.isEmpty ? tr("名称未設定", "Untitled") : preset.name)
                                 .font(.system(size: 12))
                                 .lineLimit(1)
                         }
@@ -352,7 +462,7 @@ struct PremiseEditorView: View {
 
                 HStack(spacing: 2) {
                     Button {
-                        var preset = PremisePreset(name: "新しいプリセット", text: "")
+                        var preset = PremisePreset(name: tr("新しいプリセット", "New Preset"), text: "")
                         preset.id = UUID()
                         app.settings.value.premises.append(preset)
                         selectedID = preset.id
@@ -390,7 +500,7 @@ struct PremiseEditorView: View {
             // 右: 編集
             VStack(alignment: .leading, spacing: 10) {
                 if let index = selectedIndex {
-                    TextField("プリセット名", text: $app.config.premises[index].name)
+                    TextField(tr("プリセット名", "Preset Name"), text: $app.config.premises[index].name)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12.5))
 
@@ -407,24 +517,24 @@ struct PremiseEditorView: View {
                         )
 
                     HStack {
-                        Text("例: 使用技術、対象読者、出力形式の指定など")
+                        Text(tr("例: 使用技術、対象読者、出力形式の指定など", "e.g. tech stack, target audience, output format"))
                             .font(.system(size: 10.5))
                             .foregroundStyle(.tertiary)
                         Spacer()
                         if app.settings.value.activePremiseID != app.settings.value.premises[index].id {
-                            Button("このプリセットを使用") {
+                            Button(tr("このプリセットを使用", "Use This Preset")) {
                                 app.settings.value.activePremiseID = app.settings.value.premises[index].id
                             }
                             .controlSize(.small)
                         } else {
-                            Label("使用中", systemImage: "checkmark.circle.fill")
+                            Label(tr("使用中", "Active"), systemImage: "checkmark.circle.fill")
                                 .font(.system(size: 11))
                                 .foregroundStyle(Brand.primary)
                         }
                     }
                 } else {
                     Spacer()
-                    Text("左の一覧からプリセットを選択してください")
+                    Text(tr("左の一覧からプリセットを選択してください", "Select a preset from the list on the left"))
                         .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -453,7 +563,7 @@ struct HotkeyRecorderView: View {
         Button {
             recording ? stopRecording() : startRecording()
         } label: {
-            Text(recording ? "キーを入力…" : combo.display)
+            Text(recording ? tr("キーを入力…", "Press a key…") : combo.display)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(recording ? Color.orange : Color.primary)
                 .frame(minWidth: 130)

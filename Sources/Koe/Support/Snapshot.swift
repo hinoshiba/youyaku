@@ -30,7 +30,9 @@ enum Snapshot {
             let view = MainWindowView()
                 .environmentObject(app)
                 .environmentObject(wm)
-            await snap(AnyView(view), size: NSSize(width: 1060, height: 700), path: "\(dir)/\(name).png")
+            // 設定はページが長いため縦長でレンダリングして全セクションを確認できるようにする
+            let height: CGFloat = tab == .settings ? 1900 : 700
+            await snap(AnyView(view), size: NSSize(width: 1060, height: height), path: "\(dir)/\(name).png")
         }
 
         app.transcript = "えーっと、このプロジェクトのログイン画面なんだけど、あの、パスワードリセットのメールがなんか届かないっていうバグを直してほしいんだよね"

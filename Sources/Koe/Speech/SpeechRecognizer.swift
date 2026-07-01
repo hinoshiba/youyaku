@@ -72,7 +72,7 @@ final class SpeechRecognizer: ObservableObject {
         guard !isRunning else { return }
 
         guard let rec = SFSpeechRecognizer(locale: config.locale), rec.isAvailable else {
-            throw KoeError("音声認識を利用できません。システム設定 > キーボード > 音声入力 で言語を追加してください。")
+            throw KoeError(tr("音声認識を利用できません。システム設定 > キーボード > 音声入力 で言語を追加してください。", "Speech recognition is unavailable. Add the language in System Settings > Keyboard > Dictation."))
         }
         recognizer = rec
 
@@ -93,7 +93,7 @@ final class SpeechRecognizer: ObservableObject {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else {
-            throw KoeError("マイク入力を取得できません。入力デバイスを確認してください。")
+            throw KoeError(tr("マイク入力を取得できません。入力デバイスを確認してください。", "Could not capture microphone input. Check your input device."))
         }
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
@@ -111,7 +111,7 @@ final class SpeechRecognizer: ObservableObject {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
-            throw KoeError("オーディオエンジンを開始できません: \(error.localizedDescription)")
+            throw KoeError(tr("オーディオエンジンを開始できません: \(error.localizedDescription)", "Could not start the audio engine: \(error.localizedDescription)"))
         }
 
         isRunning = true

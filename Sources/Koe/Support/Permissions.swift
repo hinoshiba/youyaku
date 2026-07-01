@@ -10,9 +10,9 @@ enum PermissionState {
 
     var label: String {
         switch self {
-        case .granted: return "許可済み"
-        case .denied: return "未許可"
-        case .notDetermined: return "未設定"
+        case .granted: return tr("許可済み", "Granted")
+        case .denied: return tr("未許可", "Denied")
+        case .notDetermined: return tr("未設定", "Not Set")
         }
     }
 }
@@ -48,7 +48,7 @@ enum Permissions {
     static func ensureSpeechAndMic() async -> EnsureResult {
         let micGranted = await AVCaptureDevice.requestAccess(for: .audio)
         guard micGranted else {
-            return EnsureResult(ok: false, message: "マイクへのアクセスが許可されていません。システム設定から許可してください。")
+            return EnsureResult(ok: false, message: tr("マイクへのアクセスが許可されていません。システム設定から許可してください。", "Microphone access is not allowed. Please allow it in System Settings."))
         }
 
         let speechStatus = await withCheckedContinuation { continuation in
@@ -57,7 +57,7 @@ enum Permissions {
             }
         }
         guard speechStatus == .authorized else {
-            return EnsureResult(ok: false, message: "音声認識が許可されていません。システム設定から許可してください。")
+            return EnsureResult(ok: false, message: tr("音声認識が許可されていません。システム設定から許可してください。", "Speech recognition is not allowed. Please allow it in System Settings."))
         }
         return EnsureResult(ok: true, message: "")
     }

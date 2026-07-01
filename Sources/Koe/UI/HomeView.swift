@@ -35,10 +35,10 @@ struct HomeView: View {
         VStack(spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("声で、AIに指示を。")
+                    Text(tr("声で、AIに指示を。", "Give AI instructions with your voice."))
                         .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("どのアプリでも \(app.settings.value.hotkey.display) を押すだけ。話した内容をローカルLLMが整った指示文に変換します。")
+                    Text(tr("どのアプリでも \(app.settings.value.hotkey.display) を押すだけ。話した内容をローカルLLMが整った指示文に変換します。", "Just press \(app.settings.value.hotkey.display) in any app. A local LLM turns what you say into a polished prompt."))
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.85))
                         .fixedSize(horizontal: false, vertical: true)
@@ -60,18 +60,18 @@ struct HomeView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .help(app.phase == .recording ? "停止" : "音声入力を開始")
+                .help(app.phase == .recording ? tr("停止", "Stop") : tr("音声入力を開始", "Start Dictation"))
             }
 
             HStack(spacing: 8) {
                 Chip(
-                    text: "モード: \(app.settings.value.refineMode.label)",
+                    text: tr("モード: \(app.settings.value.refineMode.label)", "Mode: \(app.settings.value.refineMode.label)"),
                     icon: app.settings.value.refineMode.icon,
                     tint: .white
                 )
-                Chip(text: "モデル: \(app.settings.value.activeModelLabel)", icon: "cpu", tint: .white)
+                Chip(text: tr("モデル: \(app.settings.value.activeModelLabel)", "Model: \(app.settings.value.activeModelLabel)"), icon: "cpu", tint: .white)
                 if let premise = app.settings.value.activePremise, !premise.text.isEmpty {
-                    Chip(text: "前提: \(premise.name)", icon: "doc.text", tint: .white)
+                    Chip(text: tr("前提: \(premise.name)", "Context: \(premise.name)"), icon: "doc.text", tint: .white)
                 }
                 Spacer()
             }
@@ -88,15 +88,15 @@ struct HomeView: View {
 
     private var setupChecklist: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("セットアップ")
+            Text(tr("セットアップ", "Setup"))
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.bottom, 8)
 
             checklistRow(
                 ok: micState == .granted,
-                title: "マイク",
-                detail: micState == .granted ? "許可済み" : "音声の取り込みに必要です",
-                actionLabel: micState == .notDetermined ? "許可する" : "設定を開く"
+                title: tr("マイク", "Microphone"),
+                detail: micState == .granted ? tr("許可済み", "Granted") : tr("音声の取り込みに必要です", "Required to capture audio"),
+                actionLabel: micState == .notDetermined ? tr("許可する", "Allow") : tr("設定を開く", "Open Settings")
             ) {
                 if micState == .notDetermined {
                     Task { _ = await Permissions.ensureSpeechAndMic() }
@@ -107,9 +107,9 @@ struct HomeView: View {
 
             checklistRow(
                 ok: speechState == .granted,
-                title: "音声認識",
-                detail: speechState == .granted ? "許可済み(オンデバイス処理)" : "音声をテキストに変換するために必要です",
-                actionLabel: speechState == .notDetermined ? "許可する" : "設定を開く"
+                title: tr("音声認識", "Speech Recognition"),
+                detail: speechState == .granted ? tr("許可済み(オンデバイス処理)", "Granted (processed on-device)") : tr("音声をテキストに変換するために必要です", "Required to convert speech to text"),
+                actionLabel: speechState == .notDetermined ? tr("許可する", "Allow") : tr("設定を開く", "Open Settings")
             ) {
                 if speechState == .notDetermined {
                     Task { _ = await Permissions.ensureSpeechAndMic() }
@@ -120,11 +120,11 @@ struct HomeView: View {
 
             checklistRow(
                 ok: axTrusted,
-                title: "アクセシビリティ",
+                title: tr("アクセシビリティ", "Accessibility"),
                 detail: axTrusted
-                    ? "許可済み"
-                    : "自動貼り付けに必要です(任意)。許可しても反映されない場合は、システム設定の一覧から Koe を −(マイナス)で削除してから許可し直してください",
-                actionLabel: "許可する"
+                    ? tr("許可済み", "Granted")
+                    : tr("自動貼り付けに必要です(任意)。許可しても反映されない場合は、システム設定の一覧から Koe を −(マイナス)で削除してから許可し直してください", "Required for auto-paste (optional). If granting doesn't take effect, remove Koe from the list in System Settings using the minus (−) button, then grant access again."),
+                actionLabel: tr("許可する", "Allow")
             ) {
                 Permissions.requestAccessibility()
                 Permissions.openAccessibilitySettings()
@@ -145,7 +145,7 @@ struct HomeView: View {
         let running = app.ollama.status.isRunning
         checklistRow(
             ok: running,
-            title: "Ollama(ローカルLLM実行環境)",
+            title: tr("Ollama(ローカルLLM実行環境)", "Ollama (Local LLM Runtime)"),
             detail: ollamaDetail,
             actionLabel: ollamaActionLabel
         ) {
@@ -165,20 +165,20 @@ struct HomeView: View {
     }
 
     private var ollamaDetail: String {
-        if startingServer { return "起動中…" }
+        if startingServer { return tr("起動中…", "Starting…") }
         switch app.ollama.status {
-        case .running(let version): return "稼働中(v\(version))"
-        case .installedNotRunning: return "インストール済みですが起動していません"
-        case .notInstalled: return "無料の LLM 実行環境です。インストール後、このアプリからモデルを管理できます"
-        case .unknown: return "確認中…"
+        case .running(let version): return tr("稼働中(v\(version))", "Running (v\(version))")
+        case .installedNotRunning: return tr("インストール済みですが起動していません", "Installed but not running")
+        case .notInstalled: return tr("無料の LLM 実行環境です。インストール後、このアプリからモデルを管理できます", "A free LLM runtime. After installing, you can manage models from this app.")
+        case .unknown: return tr("確認中…", "Checking…")
         }
     }
 
     private var ollamaActionLabel: String {
         switch app.ollama.status {
-        case .running: return "再確認"
-        case .installedNotRunning: return "起動する"
-        default: return "入手する"
+        case .running: return tr("再確認", "Recheck")
+        case .installedNotRunning: return tr("起動する", "Start")
+        default: return tr("入手する", "Get")
         }
     }
 
@@ -190,19 +190,19 @@ struct HomeView: View {
                 app.modelStore.installed.contains { $0.fileName == file }
             } ?? false
             detail = ready
-                ? "使用中: \(app.settings.value.activeModelLabel)"
-                : "整形に使うモデルをダウンロードしてください(推奨: Qwen3 4B)。追加のアプリは不要です"
+                ? tr("使用中: \(app.settings.value.activeModelLabel)", "In use: \(app.settings.value.activeModelLabel)")
+                : tr("整形に使うモデルをダウンロードしてください(推奨: Qwen3 4B)。追加のアプリは不要です", "Download a model for refining (recommended: Qwen3 4B). No extra apps needed.")
         } else {
             ready = !app.ollama.installed.isEmpty
             detail = ready
-                ? "\(app.ollama.installed.count) 個のモデルをインストール済み"
-                : "整形に使うモデルをダウンロードしてください"
+                ? tr("\(app.ollama.installed.count) 個のモデルをインストール済み", "\(app.ollama.installed.count) models installed")
+                : tr("整形に使うモデルをダウンロードしてください", "Download a model for refining")
         }
         return checklistRow(
             ok: ready,
-            title: "LLM モデル",
+            title: tr("LLM モデル", "LLM Model"),
             detail: detail,
-            actionLabel: ready ? "管理" : "ダウンロード"
+            actionLabel: ready ? tr("管理", "Manage") : tr("ダウンロード", "Download")
         ) {
             windowManager.tab = .models
         }
@@ -221,7 +221,7 @@ struct HomeView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if !ok || actionLabel == "管理" || actionLabel == "再確認" {
+            if !ok || actionLabel == tr("管理", "Manage") || actionLabel == tr("再確認", "Recheck") {
                 Button(actionLabel, action: action)
                     .controlSize(.small)
             }
@@ -233,27 +233,27 @@ struct HomeView: View {
 
     private var quickGuide: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("使い方")
+            Text(tr("使い方", "How It Works"))
                 .font(.system(size: 14, weight: .semibold))
 
             HStack(alignment: .top, spacing: 14) {
                 guideStep(
                     number: "1",
                     icon: "keyboard",
-                    title: "呼び出す",
-                    text: "どのアプリでも \(app.settings.value.hotkey.display) を押すと入力パネルが開き、すぐに聞き取りが始まります。"
+                    title: tr("呼び出す", "Invoke"),
+                    text: tr("どのアプリでも \(app.settings.value.hotkey.display) を押すと入力パネルが開き、すぐに聞き取りが始まります。", "Press \(app.settings.value.hotkey.display) in any app to open the input panel and start listening right away.")
                 )
                 guideStep(
                     number: "2",
                     icon: "waveform",
-                    title: "話す",
-                    text: "伝えたいことを自然に話すだけ。フィラーや言い直しは後で自動的に取り除かれます。"
+                    title: tr("話す", "Speak"),
+                    text: tr("伝えたいことを自然に話すだけ。フィラーや言い直しは後で自動的に取り除かれます。", "Just say what you mean, naturally. Filler words and false starts are removed automatically.")
                 )
                 guideStep(
                     number: "3",
                     icon: "sparkles",
-                    title: "確定する",
-                    text: "↩ でローカルLLMが指示文に整形。もう一度 ↩ でカーソル位置に貼り付きます。"
+                    title: tr("確定する", "Confirm"),
+                    text: tr("↩ でローカルLLMが指示文に整形。もう一度 ↩ でカーソル位置に貼り付きます。", "Press ↩ to let the local LLM refine your prompt, then ↩ again to paste it at the cursor.")
                 )
             }
         }

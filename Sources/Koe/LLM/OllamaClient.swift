@@ -11,7 +11,7 @@ struct InstalledModel: Identifiable, Hashable {
 }
 
 struct PullProgress: Equatable {
-    var status: String = "接続中…"
+    var status: String = tr("接続中…", "Connecting…")
     var total: Int64?
     var completed: Int64?
 
@@ -147,7 +147,7 @@ final class OllamaClient: ObservableObject {
 
                 let (bytes, response) = try await URLSession.shared.bytes(for: req)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                    throw KoeError("モデルの取得を開始できませんでした")
+                    throw KoeError(tr("モデルの取得を開始できませんでした", "Could not start downloading the model"))
                 }
                 for try await line in bytes.lines {
                     if Task.isCancelled { break }
@@ -168,7 +168,7 @@ final class OllamaClient: ObservableObject {
             } catch is CancellationError {
                 // ユーザーによるキャンセル
             } catch {
-                self.lastError = "\(name) のダウンロードに失敗: \(error.localizedDescription)"
+                self.lastError = tr("\(name) のダウンロードに失敗: \(error.localizedDescription)", "Failed to download \(name): \(error.localizedDescription)")
             }
             self.pulls[name] = nil
             self.pullTasks[name] = nil
@@ -191,7 +191,7 @@ final class OllamaClient: ObservableObject {
             _ = try await URLSession.shared.data(for: req)
             await refreshModels()
         } catch {
-            lastError = "\(name) の削除に失敗: \(error.localizedDescription)"
+            lastError = tr("\(name) の削除に失敗: \(error.localizedDescription)", "Failed to delete \(name): \(error.localizedDescription)")
         }
     }
 
@@ -228,7 +228,7 @@ final class OllamaClient: ObservableObject {
                            let err = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
                             throw KoeError(err.error)
                         }
-                        throw KoeError("LLM サーバーがエラーを返しました (HTTP \(code))")
+                        throw KoeError(tr("LLM サーバーがエラーを返しました (HTTP \(code))", "The LLM server returned an error (HTTP \(code))"))
                     }
 
                     for try await line in bytes.lines {
@@ -305,12 +305,12 @@ final class OllamaClient: ObservableObject {
 
     private static func localizedPullStatus(_ status: String) -> String {
         switch status {
-        case "success": return "完了"
-        case let s where s.hasPrefix("pulling manifest"): return "マニフェスト取得中…"
-        case let s where s.hasPrefix("pulling"): return "ダウンロード中…"
-        case let s where s.hasPrefix("verifying"): return "検証中…"
-        case let s where s.hasPrefix("writing"): return "書き込み中…"
-        case let s where s.hasPrefix("removing"): return "後処理中…"
+        case "success": return tr("完了", "Done")
+        case let s where s.hasPrefix("pulling manifest"): return tr("マニフェスト取得中…", "Fetching manifest…")
+        case let s where s.hasPrefix("pulling"): return tr("ダウンロード中…", "Downloading…")
+        case let s where s.hasPrefix("verifying"): return tr("検証中…", "Verifying…")
+        case let s where s.hasPrefix("writing"): return tr("書き込み中…", "Writing…")
+        case let s where s.hasPrefix("removing"): return tr("後処理中…", "Cleaning up…")
         default: return status
         }
     }

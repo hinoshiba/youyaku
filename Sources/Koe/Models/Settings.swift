@@ -11,15 +11,15 @@ enum EngineKind: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .builtin: return "内蔵エンジン"
+        case .builtin: return tr("内蔵エンジン", "Built-in Engine")
         case .ollama: return "Ollama"
         }
     }
 
     var help: String {
         switch self {
-        case .builtin: return "追加インストール不要。モデルはアプリ内から直接ダウンロードします(推奨)"
-        case .ollama: return "すでに Ollama をお使いの方向け。Ollama のモデルをそのまま使えます"
+        case .builtin: return tr("追加インストール不要。モデルはアプリ内から直接ダウンロードします(推奨)", "No extra installation required. Models are downloaded directly in the app (recommended).")
+        case .ollama: return tr("すでに Ollama をお使いの方向け。Ollama のモデルをそのまま使えます", "For existing Ollama users. Use your Ollama models as they are.")
         }
     }
 }
@@ -35,9 +35,9 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .raw: return "そのまま"
-        case .clean: return "整文"
-        case .command: return "AI命令化"
+        case .raw: return tr("そのまま", "Raw")
+        case .clean: return tr("整文", "Clean Up")
+        case .command: return tr("AI命令化", "AI Prompt")
         }
     }
 
@@ -51,9 +51,9 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
 
     var help: String {
         switch self {
-        case .raw: return "音声認識の結果をそのまま使います(LLM不使用)"
-        case .clean: return "フィラーを除去し、読みやすい文章に整えます"
-        case .command: return "AIアシスタントへの明確な指示文に再構成します"
+        case .raw: return tr("音声認識の結果をそのまま使います(LLM不使用)", "Uses the speech recognition result as is (no LLM)")
+        case .clean: return tr("フィラーを除去し、読みやすい文章に整えます", "Removes filler words and tidies up the text")
+        case .command: return tr("AIアシスタントへの明確な指示文に再構成します", "Restructures your speech into a clear instruction for an AI assistant")
         }
     }
 }
@@ -130,12 +130,14 @@ struct KeyCombo: Codable, Equatable {
 struct AppSettings: Codable {
     var onboarded = false
     var hotkey = KeyCombo.default
+    var uiLanguage = AppLanguage.japanese
 
     // 音声認識
     var localeID = "ja-JP"
     var preferOnDevice = true
     var punctuation = true
-    var vocabulary = ""          // カンマ区切りの専門用語
+    var vocabulary = ""                  // レガシー(旧カンマ区切り形式)。初回移行後は未使用
+    var vocabularyTerms: [String] = []   // 認識辞書(固有名詞・専門用語を 1 件ずつ登録)
     var autoStop = false
     var autoStopSeconds = 2.0
 
@@ -158,8 +160,14 @@ struct AppSettings: Codable {
     var sounds = true
 
     var vocabularyList: [String] {
-        vocabulary
-            .components(separatedBy: CharacterSet(charactersIn: ",、\n"))
+        vocabularyTerms
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    // 入力文字列を用語のリストに分解する(カンマ・読点・改行区切りの一括貼り付け対応)
+    static func splitTerms(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: ",、\n"))
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
     }
@@ -172,7 +180,7 @@ struct AppSettings: Codable {
     var activeModelLabel: String {
         switch engine {
         case .builtin:
-            guard let file = builtinModelFile else { return "モデル未選択" }
+            guard let file = builtinModelFile else { return tr("モデル未選択", "No Model Selected") }
             return file.hasSuffix(".gguf") ? String(file.dropLast(5)) : file
         case .ollama:
             return model
@@ -187,10 +195,17 @@ struct AppSettings: Codable {
         let d = AppSettings()
         onboarded = (try? c.decodeIfPresent(Bool.self, forKey: .onboarded)) ?? d.onboarded
         hotkey = (try? c.decodeIfPresent(KeyCombo.self, forKey: .hotkey)) ?? d.hotkey
+        uiLanguage = (try? c.decodeIfPresent(AppLanguage.self, forKey: .uiLanguage)) ?? d.uiLanguage
         localeID = (try? c.decodeIfPresent(String.self, forKey: .localeID)) ?? d.localeID
         preferOnDevice = (try? c.decodeIfPresent(Bool.self, forKey: .preferOnDevice)) ?? d.preferOnDevice
         punctuation = (try? c.decodeIfPresent(Bool.self, forKey: .punctuation)) ?? d.punctuation
         vocabulary = (try? c.decodeIfPresent(String.self, forKey: .vocabulary)) ?? d.vocabulary
+        // 旧カンマ区切り形式からの移行: 新形式が未保存なら旧文字列を分解して取り込む
+        if let terms = try? c.decodeIfPresent([String].self, forKey: .vocabularyTerms) {
+            vocabularyTerms = terms
+        } else {
+            vocabularyTerms = Self.splitTerms(vocabulary)
+        }
         autoStop = (try? c.decodeIfPresent(Bool.self, forKey: .autoStop)) ?? d.autoStop
         autoStopSeconds = (try? c.decodeIfPresent(Double.self, forKey: .autoStopSeconds)) ?? d.autoStopSeconds
         refineMode = (try? c.decodeIfPresent(RefineMode.self, forKey: .refineMode)) ?? d.refineMode
@@ -213,7 +228,10 @@ struct AppSettings: Codable {
 @MainActor
 final class SettingsStore: ObservableObject {
     @Published var value: AppSettings {
-        didSet { scheduleSave() }
+        didSet {
+            L10n.current = value.uiLanguage
+            scheduleSave()
+        }
     }
 
     private var saveWork: DispatchWorkItem?
@@ -233,6 +251,7 @@ final class SettingsStore: ObservableObject {
         } else {
             value = AppSettings()
         }
+        L10n.current = value.uiLanguage
     }
 
     private func scheduleSave() {

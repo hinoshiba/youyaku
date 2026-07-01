@@ -11,10 +11,10 @@ enum MainTab: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .home: return "ホーム"
-        case .models: return "モデル"
-        case .history: return "履歴"
-        case .settings: return "設定"
+        case .home: return tr("ホーム", "Home")
+        case .models: return tr("モデル", "Models")
+        case .history: return tr("履歴", "History")
+        case .settings: return tr("設定", "Settings")
         }
     }
 

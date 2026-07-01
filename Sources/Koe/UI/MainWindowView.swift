@@ -30,7 +30,7 @@ struct MainWindowView: View {
                         Text("Koe")
                             .font(.system(size: 15, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
-                        Text("AIのための音声入力")
+                        Text(tr("AIのための音声入力", "Voice input for AI"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }

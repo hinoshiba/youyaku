@@ -58,7 +58,7 @@ struct ModelsView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("LLM エンジン")
+                    Text(tr("LLM エンジン", "LLM Engine"))
                         .font(.system(size: 14, weight: .semibold))
                     Text(app.settings.value.engine.help)
                         .font(.system(size: 11))
@@ -80,7 +80,7 @@ struct ModelsView: View {
                 }
             }
 
-            Label("音声も文章もモデルも、すべて Mac の中だけで完結します。外部にデータは送信されません。",
+            Label(tr("音声も文章もモデルも、すべて Mac の中だけで完結します。外部にデータは送信されません。", "Your voice, text, and models all stay on your Mac. No data is ever sent externally."),
                   systemImage: "lock.shield")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -94,13 +94,13 @@ struct ModelsView: View {
     private var builtinInstalledCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("ダウンロード済みモデル")
+                Text(tr("ダウンロード済みモデル", "Downloaded Models"))
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Button {
                     app.modelStore.revealInFinder()
                 } label: {
-                    Label("保存先を開く", systemImage: "folder")
+                    Label(tr("保存先を開く", "Show in Finder"), systemImage: "folder")
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.borderless)
@@ -108,7 +108,7 @@ struct ModelsView: View {
             .padding(.bottom, 6)
 
             if app.modelStore.installed.isEmpty {
-                Text("まだモデルがありません。下のカタログからワンクリックでダウンロードできます。")
+                Text(tr("まだモデルがありません。下のカタログからワンクリックでダウンロードできます。", "No models yet. Download one from the catalog below with a single click."))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 10)
@@ -125,7 +125,7 @@ struct ModelsView: View {
             HStack {
                 Image(systemName: "internaldrive")
                     .foregroundStyle(.tertiary)
-                Text("空き容量: \(Format.bytes(app.modelStore.freeDiskSpace))")
+                Text(tr("空き容量: \(Format.bytes(app.modelStore.freeDiskSpace))", "Free space: \(Format.bytes(app.modelStore.freeDiskSpace))"))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -145,14 +145,14 @@ struct ModelsView: View {
                     .foregroundStyle(isActive ? Brand.primary : .secondary)
             }
             .buttonStyle(.plain)
-            .help("このモデルを使用")
+            .help(tr("このモデルを使用", "Use This Model"))
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(model.displayName)
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                     if isActive {
-                        Chip(text: "使用中", tint: Brand.primary)
+                        Chip(text: tr("使用中", "In Use"), tint: Brand.primary)
                     }
                 }
                 Text(Format.bytes(model.size))
@@ -173,7 +173,7 @@ struct ModelsView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("削除")
+            .help(tr("削除", "Delete"))
         }
         .padding(.vertical, 6)
     }
@@ -182,9 +182,9 @@ struct ModelsView: View {
 
     private var builtinCatalogCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("モデルカタログ")
+            Text(tr("モデルカタログ", "Model Catalog"))
                 .font(.system(size: 14, weight: .semibold))
-            Text("日本語の指示整形に向いたモデルを厳選。ワンクリックで Hugging Face から直接ダウンロードします。")
+            Text(tr("日本語の指示整形に向いたモデルを厳選。ワンクリックで Hugging Face から直接ダウンロードします。", "A curated selection of models well suited to prompt refinement. Download directly from Hugging Face with one click."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 8)
@@ -211,8 +211,8 @@ struct ModelsView: View {
                         .font(.system(size: 13, weight: .semibold))
                     Chip(text: model.vendor, tint: .secondary)
                     if let tag = model.tag {
-                        Chip(text: tag, icon: tag == "おすすめ" ? "star.fill" : nil,
-                             tint: tag == "おすすめ" ? .orange : Brand.primary)
+                        Chip(text: tag, icon: model.isRecommended ? "star.fill" : nil,
+                             tint: model.isRecommended ? .orange : Brand.primary)
                     }
                 }
                 Text(model.description)
@@ -233,7 +233,7 @@ struct ModelsView: View {
             Spacer()
 
             if installed {
-                Label("導入済み", systemImage: "checkmark.circle.fill")
+                Label(tr("導入済み", "Installed"), systemImage: "checkmark.circle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.green)
             } else if let progress {
@@ -242,7 +242,7 @@ struct ModelsView: View {
                 Button {
                     app.modelStore.download(from: model.url, fileName: model.fileName, expectedBytes: model.sizeBytes)
                 } label: {
-                    Label("ダウンロード", systemImage: "arrow.down.circle")
+                    Label(tr("ダウンロード", "Download"), systemImage: "arrow.down.circle")
                         .font(.system(size: 12))
                 }
             }
@@ -264,7 +264,7 @@ struct ModelsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("キャンセル")
+                .help(tr("キャンセル", "Cancel"))
             }
             ProgressView(value: progress.fraction)
                 .progressViewStyle(.linear)
@@ -277,18 +277,18 @@ struct ModelsView: View {
             return "\(Int(fraction * 100))%(\(Format.bytes(p.receivedBytes)) / \(Format.bytes(p.totalBytes)))"
         }
         if p.receivedBytes > 0 {
-            return "\(Format.bytes(p.receivedBytes)) 受信…"
+            return tr("\(Format.bytes(p.receivedBytes)) 受信…", "\(Format.bytes(p.receivedBytes)) received…")
         }
-        return "接続中…"
+        return tr("接続中…", "Connecting…")
     }
 
     // MARK: - 内蔵エンジン: 任意の GGUF
 
     private var builtinCustomCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("その他のモデル")
+            Text(tr("その他のモデル", "Other Models"))
                 .font(.system(size: 14, weight: .semibold))
-            Text("Hugging Face 上の任意の GGUF ファイルの直リンク(…/resolve/main/xxx.gguf)を指定してダウンロードできます。")
+            Text(tr("Hugging Face 上の任意の GGUF ファイルの直リンク(…/resolve/main/xxx.gguf)を指定してダウンロードできます。", "Enter a direct link to any GGUF file on Hugging Face (…/resolve/main/xxx.gguf) to download it."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -301,12 +301,12 @@ struct ModelsView: View {
                 if let name = customFileName, let progress = app.modelStore.downloads[name] {
                     builtinProgressView(fileName: name, progress: progress)
                 } else {
-                    Button("ダウンロード") { downloadCustom() }
+                    Button(tr("ダウンロード", "Download")) { downloadCustom() }
                         .disabled(customFileName == nil)
                 }
             }
 
-            Link("GGUF モデルを探す(huggingface.co)",
+            Link(tr("GGUF モデルを探す(huggingface.co)", "Find GGUF Models (huggingface.co)"),
                  destination: URL(string: "https://huggingface.co/models?library=gguf&language=ja&sort=downloads")!)
                 .font(.system(size: 11))
         }
@@ -351,12 +351,12 @@ struct ModelsView: View {
 
             switch app.ollama.status {
             case .notInstalled:
-                Button("Ollama を入手") {
+                Button(tr("Ollama を入手", "Get Ollama")) {
                     NSWorkspace.shared.open(URL(string: "https://ollama.com/download")!)
                 }
                 .buttonStyle(.borderedProminent)
             case .installedNotRunning:
-                Button(startingServer ? "起動中…" : "サーバーを起動") {
+                Button(startingServer ? tr("起動中…", "Starting…") : tr("サーバーを起動", "Start Server")) {
                     startingServer = true
                     Task {
                         _ = await app.ollama.startServer()
@@ -371,7 +371,7 @@ struct ModelsView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("再読み込み")
+                .help(tr("再読み込み", "Refresh"))
             }
         }
         .padding(18)
@@ -380,18 +380,18 @@ struct ModelsView: View {
 
     private var serverTitle: String {
         switch app.ollama.status {
-        case .running(let version): return "Ollama 稼働中(v\(version))"
-        case .installedNotRunning: return "Ollama は停止しています"
-        case .notInstalled: return "Ollama が見つかりません"
-        case .unknown: return "確認中…"
+        case .running(let version): return tr("Ollama 稼働中(v\(version))", "Ollama Running (v\(version))")
+        case .installedNotRunning: return tr("Ollama は停止しています", "Ollama Is Not Running")
+        case .notInstalled: return tr("Ollama が見つかりません", "Ollama Not Found")
+        case .unknown: return tr("確認中…", "Checking…")
         }
     }
 
     private var serverDetail: String {
         switch app.ollama.status {
-        case .running: return "モデルはすべてローカルで動作します。"
-        case .installedNotRunning: return "サーバーを起動するとモデルの管理と整形が使えるようになります。"
-        case .notInstalled: return "Ollama を使わない場合は、上の切替から「内蔵エンジン」をお選びください。"
+        case .running: return tr("モデルはすべてローカルで動作します。", "All models run locally on your Mac.")
+        case .installedNotRunning: return tr("サーバーを起動するとモデルの管理と整形が使えるようになります。", "Start the server to manage models and use refinement.")
+        case .notInstalled: return tr("Ollama を使わない場合は、上の切替から「内蔵エンジン」をお選びください。", "If you prefer not to use Ollama, select \"Built-in Engine\" above.")
         case .unknown: return ""
         }
     }
@@ -400,15 +400,15 @@ struct ModelsView: View {
 
     private var installGuideCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Ollama のセットアップ")
+            Text(tr("Ollama のセットアップ", "Set Up Ollama"))
                 .font(.system(size: 14, weight: .semibold))
 
-            guideRow(number: "1", title: "Ollama をインストール") {
+            guideRow(number: "1", title: tr("Ollama をインストール", "Install Ollama")) {
                 HStack(spacing: 10) {
-                    Button("公式サイトからダウンロード") {
+                    Button(tr("公式サイトからダウンロード", "Download from Official Site")) {
                         NSWorkspace.shared.open(URL(string: "https://ollama.com/download")!)
                     }
-                    Text("または")
+                    Text(tr("または", "or"))
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                     Button {
@@ -424,21 +424,21 @@ struct ModelsView: View {
                                 .font(.system(size: 10))
                         }
                     }
-                    .help("Homebrew コマンドをコピー")
+                    .help(tr("Homebrew コマンドをコピー", "Copy Homebrew Command"))
                 }
             }
 
-            guideRow(number: "2", title: "この画面に戻って「再確認」") {
+            guideRow(number: "2", title: tr("この画面に戻って「再確認」", "Come back here and click \"Check Again\"")) {
                 Button {
                     Task { await app.ollama.refresh() }
                 } label: {
-                    Label("再確認", systemImage: "arrow.clockwise")
+                    Label(tr("再確認", "Check Again"), systemImage: "arrow.clockwise")
                         .font(.system(size: 12))
                 }
             }
 
-            guideRow(number: "3", title: "モデルをワンクリックでダウンロード") {
-                Text("接続後、この画面に Ollama 用モデルのカタログが表示されます。")
+            guideRow(number: "3", title: tr("モデルをワンクリックでダウンロード", "Download a model with one click")) {
+                Text(tr("接続後、この画面に Ollama 用モデルのカタログが表示されます。", "Once connected, a catalog of Ollama models will appear here."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -468,12 +468,12 @@ struct ModelsView: View {
     @ViewBuilder
     private var installedCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("インストール済みモデル")
+            Text(tr("インストール済みモデル", "Installed Models"))
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.bottom, 6)
 
             if app.ollama.installed.isEmpty {
-                Text("まだモデルがありません。下のカタログからダウンロードしてください。")
+                Text(tr("まだモデルがありません。下のカタログからダウンロードしてください。", "No models yet. Download one from the catalog below."))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 10)
@@ -500,14 +500,14 @@ struct ModelsView: View {
                     .foregroundStyle(isActive ? Brand.primary : .secondary)
             }
             .buttonStyle(.plain)
-            .help("このモデルを使用")
+            .help(tr("このモデルを使用", "Use This Model"))
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(model.name)
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                     if isActive {
-                        Chip(text: "使用中", tint: Brand.primary)
+                        Chip(text: tr("使用中", "In Use"), tint: Brand.primary)
                     }
                 }
                 HStack(spacing: 8) {
@@ -528,7 +528,7 @@ struct ModelsView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("削除")
+            .help(tr("削除", "Delete"))
         }
         .padding(.vertical, 6)
     }
@@ -537,9 +537,9 @@ struct ModelsView: View {
 
     private var catalogCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("おすすめモデル")
+            Text(tr("おすすめモデル", "Recommended Models"))
                 .font(.system(size: 14, weight: .semibold))
-            Text("日本語の指示整形に向いたモデルを厳選しています。")
+            Text(tr("日本語の指示整形に向いたモデルを厳選しています。", "A curated selection of models well suited to prompt refinement."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 8)
@@ -566,7 +566,7 @@ struct ModelsView: View {
                         .font(.system(size: 13, weight: .semibold))
                     Chip(text: model.vendor, tint: .secondary)
                     if model.recommended {
-                        Chip(text: "おすすめ", icon: "star.fill", tint: .orange)
+                        Chip(text: tr("おすすめ", "Recommended"), icon: "star.fill", tint: .orange)
                     }
                 }
                 Text(model.description)
@@ -587,7 +587,7 @@ struct ModelsView: View {
             Spacer()
 
             if installed {
-                Label("導入済み", systemImage: "checkmark.circle.fill")
+                Label(tr("導入済み", "Installed"), systemImage: "checkmark.circle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.green)
             } else if let progress {
@@ -596,7 +596,7 @@ struct ModelsView: View {
                 Button {
                     app.ollama.pull(model.name)
                 } label: {
-                    Label("ダウンロード", systemImage: "arrow.down.circle")
+                    Label(tr("ダウンロード", "Download"), systemImage: "arrow.down.circle")
                         .font(.system(size: 12))
                 }
             }
@@ -618,7 +618,7 @@ struct ModelsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("キャンセル")
+                .help(tr("キャンセル", "Cancel"))
             }
             ProgressView(value: progress.fraction ?? 0)
                 .progressViewStyle(.linear)
@@ -640,7 +640,7 @@ struct ModelsView: View {
                     .font(.system(size: 8))
                     .foregroundStyle(i < n ? Color.orange : Color.secondary.opacity(0.4))
             }
-            Text("日本語")
+            Text(tr("日本語", "Japanese"))
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
                 .padding(.leading, 3)
@@ -651,14 +651,14 @@ struct ModelsView: View {
 
     private var customPullCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("その他のモデル")
+            Text(tr("その他のモデル", "Other Models"))
                 .font(.system(size: 14, weight: .semibold))
-            Text("Ollama ライブラリの任意のモデルタグを指定してダウンロードできます。")
+            Text(tr("Ollama ライブラリの任意のモデルタグを指定してダウンロードできます。", "Download any model tag from the Ollama library."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
-                TextField("例: qwen3:14b", text: $customModel)
+                TextField(tr("例: qwen3:14b", "e.g. qwen3:14b"), text: $customModel)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12, design: .monospaced))
                     .onSubmit { pullCustom() }
@@ -666,12 +666,12 @@ struct ModelsView: View {
                 if let progress = app.ollama.pulls[customModel.trimmingCharacters(in: .whitespaces)] {
                     pullProgressView(name: customModel.trimmingCharacters(in: .whitespaces), progress: progress)
                 } else {
-                    Button("ダウンロード") { pullCustom() }
+                    Button(tr("ダウンロード", "Download")) { pullCustom() }
                         .disabled(customModel.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
 
-            Link("モデルライブラリを見る(ollama.com/library)",
+            Link(tr("モデルライブラリを見る(ollama.com/library)", "Browse the Model Library (ollama.com/library)"),
                  destination: URL(string: "https://ollama.com/library")!)
                 .font(.system(size: 11))
         }

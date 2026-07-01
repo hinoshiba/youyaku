@@ -22,7 +22,7 @@ struct MenuBarView: View {
             Text("Koe")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(Brand.gradient)
-            Text("AIのための音声入力")
+            Text(tr("AIのための音声入力", "Voice input for AI"))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -37,10 +37,10 @@ struct MenuBarView: View {
             ready = app.settings.value.builtinModelFile.map { file in
                 app.modelStore.installed.contains { $0.fileName == file }
             } ?? false
-            label = ready ? "ローカルLLM 準備完了" : "モデル未設定"
+            label = ready ? tr("ローカルLLM 準備完了", "Local LLM Ready") : tr("モデル未設定", "No Model Selected")
         } else {
             ready = app.ollama.status.isRunning
-            label = ready ? "Ollama 稼働中" : "Ollama 停止中"
+            label = ready ? tr("Ollama 稼働中", "Ollama Running") : tr("Ollama 停止中", "Ollama Stopped")
         }
         return HStack(spacing: 5) {
             Circle()
@@ -58,7 +58,7 @@ struct MenuBarView: View {
         } label: {
             HStack {
                 Image(systemName: app.phase == .recording ? "stop.fill" : "mic.fill")
-                Text(app.phase == .recording ? "停止して整形" : "音声入力を開始")
+                Text(app.phase == .recording ? tr("停止して整形", "Stop & Refine") : tr("音声入力を開始", "Start Dictation"))
                     .fontWeight(.semibold)
                 Spacer()
                 Text(app.settings.value.hotkey.display)
@@ -77,7 +77,7 @@ struct MenuBarView: View {
     }
 
     private var modePicker: some View {
-        Picker("モード", selection: $app.config.refineMode) {
+        Picker(tr("モード", "Mode"), selection: $app.config.refineMode) {
             ForEach(RefineMode.allCases) { mode in
                 Text(mode.label).tag(mode)
             }
@@ -89,19 +89,19 @@ struct MenuBarView: View {
     private var selectors: some View {
         VStack(spacing: 6) {
             HStack {
-                Label("モデル", systemImage: "cpu")
+                Label(tr("モデル", "Model"), systemImage: "cpu")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
                 if app.settings.value.engine == .builtin {
                     if app.modelStore.installed.isEmpty {
-                        Button("ダウンロードする") {
+                        Button(tr("ダウンロードする", "Download")) {
                             WindowManager.shared.show(tab: .models)
                         }
                         .controlSize(.small)
                     } else {
                         Picker("", selection: $app.config.builtinModelFile) {
-                            Text("未選択").tag(String?.none)
+                            Text(tr("未選択", "None")).tag(String?.none)
                             ForEach(app.modelStore.installed) { model in
                                 Text(model.displayName).tag(String?.some(model.fileName))
                             }
@@ -123,12 +123,12 @@ struct MenuBarView: View {
                 }
             }
             HStack {
-                Label("前提", systemImage: "doc.text")
+                Label(tr("前提", "Context"), systemImage: "doc.text")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $app.config.activePremiseID) {
-                    Text("なし").tag(UUID?.none)
+                    Text(tr("なし", "None")).tag(UUID?.none)
                     ForEach(app.settings.value.premises) { preset in
                         Text(preset.name).tag(UUID?.some(preset.id))
                     }
@@ -145,7 +145,7 @@ struct MenuBarView: View {
             let text = last.refined.isEmpty ? last.raw : last.refined
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text(last.refined.isEmpty ? "最近の入力(音声のみ)" : "最近の入力")
+                    Text(last.refined.isEmpty ? tr("最近の入力(音声のみ)", "Recent Input (Voice Only)") : tr("最近の入力", "Recent Input"))
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -156,7 +156,7 @@ struct MenuBarView: View {
                             .font(.system(size: 10))
                     }
                     .buttonStyle(.plain)
-                    .help("コピー")
+                    .help(tr("コピー", "Copy"))
                 }
                 Text(text)
                     .font(.system(size: 11))
@@ -173,7 +173,7 @@ struct MenuBarView: View {
             Button {
                 WindowManager.shared.show(tab: .home)
             } label: {
-                Label("ダッシュボード", systemImage: "rectangle.grid.2x2")
+                Label(tr("ダッシュボード", "Dashboard"), systemImage: "rectangle.grid.2x2")
                     .font(.system(size: 11))
             }
             .buttonStyle(.plain)
@@ -186,7 +186,7 @@ struct MenuBarView: View {
                 Image(systemName: "gearshape")
             }
             .buttonStyle(.plain)
-            .help("設定")
+            .help(tr("設定", "Settings"))
 
             Button {
                 NSApp.terminate(nil)
@@ -194,7 +194,7 @@ struct MenuBarView: View {
                 Image(systemName: "power")
             }
             .buttonStyle(.plain)
-            .help("Koe を終了")
+            .help(tr("Koe を終了", "Quit Koe"))
         }
         .foregroundStyle(.secondary)
     }

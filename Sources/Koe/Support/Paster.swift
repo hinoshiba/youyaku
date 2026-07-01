@@ -8,9 +8,9 @@ enum DeliveryResult {
 
     var message: String {
         switch self {
-        case .pasted: return "貼り付けました"
-        case .copiedOnly: return "クリップボードにコピーしました"
-        case .needsAccessibility: return "コピーしました(自動貼り付けにはアクセシビリティ権限が必要です)"
+        case .pasted: return tr("貼り付けました", "Pasted")
+        case .copiedOnly: return tr("クリップボードにコピーしました", "Copied to clipboard")
+        case .needsAccessibility: return tr("コピーしました(自動貼り付けにはアクセシビリティ権限が必要です)", "Copied. (Auto-paste requires Accessibility permission.)")
         }
     }
 }

@@ -77,13 +77,13 @@ final class ModelStore: NSObject, ObservableObject {
         let fileName = fileName.trimmingCharacters(in: .whitespaces)
         guard !fileName.isEmpty, tasks[fileName] == nil else { return }
         guard fileName.lowercased().hasSuffix(".gguf") else {
-            lastError = "GGUF ファイル(.gguf)の URL を指定してください"
+            lastError = tr("GGUF ファイル(.gguf)の URL を指定してください", "Please provide a URL to a GGUF (.gguf) file")
             return
         }
         // サイズ不明(任意URL)の場合も最低 2GB の余裕を要求する
         let required = max(expectedBytes ?? 0, 1_000_000_000)
         if freeDiskSpace < required + 1_000_000_000 {
-            lastError = "ディスクの空き容量が不足しています(必要: 約 \(Format.bytes(required)) + 余裕)"
+            lastError = tr("ディスクの空き容量が不足しています(必要: 約 \(Format.bytes(required)) + 余裕)", "Not enough free disk space (about \(Format.bytes(required)) needed, plus headroom)")
             return
         }
 
@@ -174,9 +174,9 @@ extension ModelStore: URLSessionDownloadDelegate {
         var errorMessage: String?
 
         if status != 200 {
-            errorMessage = "サーバーがエラーを返しました (HTTP \(status))"
+            errorMessage = tr("サーバーがエラーを返しました (HTTP \(status))", "The server returned an error (HTTP \(status))")
         } else if !Self.looksLikeGGUF(location) {
-            errorMessage = "ダウンロードしたファイルが GGUF 形式ではありません(URL を確認してください)"
+            errorMessage = tr("ダウンロードしたファイルが GGUF 形式ではありません(URL を確認してください)", "The downloaded file is not in GGUF format (please check the URL)")
         } else {
             // 一時ファイルはこのメソッドを抜けると消えるため、同期的に移動する
             let dest = ModelStore.directory.appendingPathComponent(fileName)
@@ -186,7 +186,7 @@ extension ModelStore: URLSessionDownloadDelegate {
                 }
                 try FileManager.default.moveItem(at: location, to: dest)
             } catch {
-                errorMessage = "ファイルの保存に失敗しました: \(error.localizedDescription)"
+                errorMessage = tr("ファイルの保存に失敗しました: \(error.localizedDescription)", "Failed to save the file: \(error.localizedDescription)")
             }
         }
 
@@ -200,7 +200,7 @@ extension ModelStore: URLSessionDownloadDelegate {
         guard let error, (error as NSError).code != NSURLErrorCancelled,
               let fileName = task.taskDescription else { return }
         Task { @MainActor [weak self] in
-            self?.finish(fileName: fileName, error: "ダウンロードに失敗しました: \(error.localizedDescription)")
+            self?.finish(fileName: fileName, error: tr("ダウンロードに失敗しました: \(error.localizedDescription)", "Download failed: \(error.localizedDescription)"))
         }
     }
 
