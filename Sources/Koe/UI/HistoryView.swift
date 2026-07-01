@@ -4,6 +4,15 @@ struct HistoryView: View {
     @EnvironmentObject var app: AppState
     @State private var query = ""
     @State private var copiedID: UUID?
+    @State private var expandedIDs: Set<UUID> = []
+
+    // 表示が切り詰められる可能性があるか(行数指定の lineLimit に合わせ、
+    // 文字量と改行数の両方で判定する)
+    private static func isClipped(_ text: String, lineLimit: Int, charBudget: Int) -> Bool {
+        if text.count > charBudget { return true }
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).count
+        return lines > lineLimit
+    }
 
     private var filtered: [HistoryEntry] {
         guard !query.isEmpty else { return app.history.entries }
@@ -14,7 +23,9 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        // 検索フィルタは 1 レンダーにつき 1 回だけ評価する
+        let list = filtered
+        return VStack(spacing: 0) {
             HStack(spacing: 12) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
@@ -40,12 +51,12 @@ struct HistoryView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
 
-            if filtered.isEmpty {
+            if list.isEmpty {
                 emptyState
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(filtered) { entry in
+                        ForEach(list) { entry in
                             row(entry)
                         }
                     }
@@ -76,18 +87,31 @@ struct HistoryView: View {
     }
 
     private func row(_ entry: HistoryEntry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // 変換前(音声入力)と変換後の両方を保持。未変換なら音声入力を本文として表示
+        let hasRefined = !entry.refined.isEmpty
+        let mainText = hasRefined ? entry.refined : entry.raw
+        let expanded = expandedIDs.contains(entry.id)
+        let showsRaw = hasRefined && entry.raw != entry.refined
+        // 本文は 6 行(約 360 字)、併記の音声入力は 2 行(約 120 字)で切り詰められる
+        let isLong = Self.isClipped(mainText, lineLimit: 6, charBudget: 360)
+            || (showsRaw && Self.isClipped(entry.raw, lineLimit: 2, charBudget: 120))
+
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.tertiary)
-                Chip(text: entry.mode.label, icon: entry.mode.icon, tint: Brand.secondary)
+                if hasRefined {
+                    Chip(text: entry.mode.label, icon: entry.mode.icon, tint: Brand.secondary)
+                } else {
+                    Chip(text: "音声のみ", icon: "mic", tint: .orange)
+                }
                 if entry.model != "-" {
                     Chip(text: entry.model, icon: "cpu", tint: .secondary)
                 }
                 Spacer()
                 Button {
-                    _ = Paster.deliver(entry.refined, paste: false, keepInClipboard: true)
+                    _ = Paster.deliver(mainText, paste: false, keepInClipboard: true)
                     copiedID = entry.id
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         if copiedID == entry.id { copiedID = nil }
@@ -110,17 +134,50 @@ struct HistoryView: View {
                 .help("削除")
             }
 
-            Text(entry.refined)
+            Text(mainText)
                 .font(.system(size: 13))
+                .lineLimit(expanded ? nil : 6)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if entry.raw != entry.refined {
-                Text(entry.raw)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(2)
-                    .textSelection(.enabled)
+            // 変換済みの場合は、元の音声入力も併記(コピー可)
+            if showsRaw {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("音声入力")
+                            .font(.system(size: 9.5, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                        Button {
+                            _ = Paster.deliver(entry.raw, paste: false, keepInClipboard: true)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("音声入力をコピー")
+                    }
+                    Text(entry.raw)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(expanded ? nil : 2)
+                        .textSelection(.enabled)
+                }
+            }
+
+            if isLong {
+                Button {
+                    if expanded {
+                        expandedIDs.remove(entry.id)
+                    } else {
+                        expandedIDs.insert(entry.id)
+                    }
+                } label: {
+                    Label(expanded ? "折りたたむ" : "すべて表示",
+                          systemImage: expanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10.5))
+                }
+                .buttonStyle(.borderless)
             }
         }
         .padding(14)

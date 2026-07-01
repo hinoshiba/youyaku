@@ -142,14 +142,15 @@ struct MenuBarView: View {
     @ViewBuilder
     private var lastResult: some View {
         if let last = app.history.entries.first {
+            let text = last.refined.isEmpty ? last.raw : last.refined
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("最近の入力")
+                    Text(last.refined.isEmpty ? "最近の入力(音声のみ)" : "最近の入力")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
-                        _ = Paster.deliver(last.refined, paste: false, keepInClipboard: true)
+                        _ = Paster.deliver(text, paste: false, keepInClipboard: true)
                     } label: {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 10))
@@ -157,7 +158,7 @@ struct MenuBarView: View {
                     .buttonStyle(.plain)
                     .help("コピー")
                 }
-                Text(last.refined)
+                Text(text)
                     .font(.system(size: 11))
                     .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)

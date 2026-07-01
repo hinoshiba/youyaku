@@ -26,11 +26,24 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    func add(raw: String, refined: String, mode: RefineMode, model: String) {
-        entries.insert(HistoryEntry(raw: raw, refined: refined, mode: mode, model: model), at: 0)
+    /// 履歴に追加してエントリ ID を返す。refined は空でもよい(音声入力のみの保全)
+    @discardableResult
+    func add(raw: String, refined: String, mode: RefineMode, model: String) -> UUID {
+        let entry = HistoryEntry(raw: raw, refined: refined, mode: mode, model: model)
+        entries.insert(entry, at: 0)
         if entries.count > Self.cap {
             entries.removeLast(entries.count - Self.cap)
         }
+        save()
+        return entry.id
+    }
+
+    /// 変換完了時に、先に保存しておいた音声入力エントリへ変換結果を書き込む
+    func updateRefined(id: UUID, refined: String, mode: RefineMode, model: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        entries[index].refined = refined
+        entries[index].mode = mode
+        entries[index].model = model
         save()
     }
 

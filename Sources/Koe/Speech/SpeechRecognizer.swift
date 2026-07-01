@@ -20,20 +20,36 @@ final class SpeechRecognizer: ObservableObject {
     private var task: SFSpeechRecognitionTask?
     private var recognizer: SFSpeechRecognizer?
     private var finishContinuation: CheckedContinuation<String, Never>?
+    private var stopFallbackWork: DispatchWorkItem?
     private var bestTranscript = ""
     private var lastVoiceAt = Date()
     private var autoStopTimer: Timer?
 
+    // マイクのタップコールバック(オーディオスレッド)と共有するリクエスト参照。
+    // MainActor プロパティを直接読まず、ロック越しに受け渡す
+    private let tapLock = NSLock()
+    private nonisolated(unsafe) var tapRequest: SFSpeechAudioBufferRecognitionRequest?
+
     // 長文ディクテーション対応:
-    // SFSpeechRecognizer は無音やセグメント上限で認識を確定(isFinal)し、
-    // その後の formattedString は新しいセグメントだけの内容にリセットされる。
-    // そのままだと段落が変わるたびに前の文字起こしが消えるため、
-    // 確定済みセグメントを committedText に累積し、認識タスクを継ぎ直す。
+    // SFSpeechRecognizer は発話の区切りで文字起こしを確定し、以降の formattedString は
+    // 新しい発話だけの内容になる。確定済みを committedText に累積して全文を保持する。
+    //
+    // 発話の区切りは次の 3 層で検出する(暫定文の内容比較はしない。認識途中の
+    // 書き換え(かな→漢字等)を区切りと誤検知すると、同じ文が二重に累積するため):
+    //   1. result.isFinal / speechRecognitionMetadata 付きの結果 = OS による発話確定
+    //   2. 無音が続いたらこちらから確定して認識タスクを継ぎ直す(能動的な区切り)
+    //   3. 保険: 暫定文が突然大幅に短くなったら、通知なしのリセットとみなして退避
     private var activeConfig: Config?
-    private var committedText = ""            // 確定済みセグメントの累積
-    private var liveSegment = ""             // 認識中の最新セグメント(未確定)
+    private var committedText = ""            // 確定済み発話の累積
+    private var liveSegment = ""              // 認識中の最新発話(未確定・毎回丸ごと置き換え)
+    private var lastCommitted = ""            // 直前に確定した発話の全文(重複通知の除去用)
+    private var lastCommittedAt = Date.distantPast  // 除去は確定直後の短時間のみ有効(繰り返し発話を食わないため)
+    private var lastPartialChangeAt = Date()  // 暫定文が最後に変化した時刻(無音判定用)
     private var taskGeneration = 0            // 再開前の古いタスクの遅延コールバックを無視するための世代番号
     private var restartsWithoutProgress = 0   // エラー連発時の無限再開を防ぐ
+    private var segmentTimer: Timer?          // 無音での能動的区切り
+
+    private static let segmentSilence: TimeInterval = 1.6
 
     struct Config {
         var locale: Locale
@@ -63,11 +79,16 @@ final class SpeechRecognizer: ObservableObject {
         activeConfig = config
         committedText = ""
         liveSegment = ""
+        lastCommitted = ""
+        lastCommittedAt = .distantPast
         bestTranscript = ""
         partial = ""
         lastVoiceAt = Date()
+        lastPartialChangeAt = Date()
         restartsWithoutProgress = 0
-        request = makeRequest(config, recognizer: rec)
+        let req = makeRequest(config, recognizer: rec)
+        request = req
+        setTapRequest(req)
 
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
@@ -77,7 +98,10 @@ final class SpeechRecognizer: ObservableObject {
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             guard let self else { return }
-            self.request?.append(buffer)
+            self.tapLock.lock()
+            let req = self.tapRequest
+            self.tapLock.unlock()
+            req?.append(buffer)
             let rms = Self.rms(buffer)
             Task { @MainActor [weak self] in self?.updateLevel(rms) }
         }
@@ -93,6 +117,7 @@ final class SpeechRecognizer: ObservableObject {
         isRunning = true
         startTask()
         startAutoStopTimer(config.autoStopAfter)
+        startSegmentTimer()
     }
 
     private func makeRequest(_ config: Config, recognizer rec: SFSpeechRecognizer) -> SFSpeechAudioBufferRecognitionRequest {
@@ -118,14 +143,51 @@ final class SpeechRecognizer: ObservableObject {
         }
     }
 
-    // 確定済みセグメントを保ったまま、新しい認識タスクで継続する
+    private nonisolated func setTapRequest(_ req: SFSpeechAudioBufferRecognitionRequest?) {
+        tapLock.lock()
+        tapRequest = req
+        tapLock.unlock()
+    }
+
+    // 確定済みテキストを保ったまま、新しい認識タスクで継続する
     private func restartRecognition() {
         guard isRunning, let config = activeConfig, let rec = recognizer else { return }
+        // 先に新リクエストへ切り替えてから旧タスクを止める(バッファの取りこぼし防止)
+        let newRequest = makeRequest(config, recognizer: rec)
+        request = newRequest
+        setTapRequest(newRequest)
         task?.cancel()
         task = nil
         liveSegment = ""            // 新タスクの formattedString は最初から始まる
-        request = makeRequest(config, recognizer: rec)
+        lastCommitted = ""          // 新タスクの結果に古い確定文は含まれない
+        lastCommittedAt = .distantPast
+        lastPartialChangeAt = Date()
         startTask()
+    }
+
+    // 無音が続いたら発話を確定し、タスクを継ぎ直す(能動的な区切り)。
+    // OS の確定通知(metadata)が来ない環境でも、確定済みテキストが失われないようにする。
+    private func startSegmentTimer() {
+        segmentTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isRunning, !self.liveSegment.isEmpty else { return }
+                // 「マイクレベル」と「暫定文の変化」の両方が止まっている時だけ区切る
+                let quietFor = Date().timeIntervalSince(max(self.lastVoiceAt, self.lastPartialChangeAt))
+                if quietFor > Self.segmentSilence {
+                    self.commitLiveSegment()
+                    self.restartRecognition()
+                }
+            }
+        }
+    }
+
+    private func commitLiveSegment() {
+        let text = liveSegment.trimmingCharacters(in: .whitespacesAndNewlines)
+        liveSegment = ""
+        guard !text.isEmpty else { return }
+        committedText = Self.join(committedText, text)
+        bestTranscript = committedText
+        partial = committedText
     }
 
     /// 録音を止め、最終確定した文字起こしを返す
@@ -137,11 +199,15 @@ final class SpeechRecognizer: ObservableObject {
 
         return await withCheckedContinuation { continuation in
             finishContinuation = continuation
-            // 最終結果が来ない場合のフォールバック
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+            // 最終結果が来ない場合のフォールバック。
+            // finish() で必ずキャンセルする(遅れて発火すると次のセッションの
+            // request/task を破壊して録音が無音になるため)
+            let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 self.finish(with: self.bestTranscript)
             }
+            stopFallbackWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: work)
         }
     }
 
@@ -151,7 +217,9 @@ final class SpeechRecognizer: ObservableObject {
         liveSegment = ""
         stopAudio()
         task?.cancel()
-        finish(with: bestTranscript)
+        finish(with: bestTranscript)   // stop() 待ちがあれば解決する
+        task = nil
+        request = nil
         partial = ""
         level = 0
     }
@@ -161,7 +229,10 @@ final class SpeechRecognizer: ObservableObject {
     private func stopAudio() {
         autoStopTimer?.invalidate()
         autoStopTimer = nil
+        segmentTimer?.invalidate()
+        segmentTimer = nil
         engine.inputNode.removeTap(onBus: 0)
+        setTapRequest(nil)
         engine.stop()
         level = 0
     }
@@ -171,25 +242,47 @@ final class SpeechRecognizer: ObservableObject {
         guard generation == taskGeneration else { return }
 
         if let result {
-            let segment = result.bestTranscription.formattedString
+            var segment = result.bestTranscription.formattedString
 
-            // 同じタスク内でも formattedString が新しい発話にリセットされることがある
-            // (特にオンデバイス認識)。前のセグメントの継続でなければ、確定として累積する。
-            if Self.isNewSegment(previous: liveSegment, current: segment) {
-                committedText = Self.join(committedText, liveSegment)
-                liveSegment = ""
+            // 直前に確定した発話がそのまま先頭に含まれて再通知される実装系への保険(重複除去)。
+            // 確定直後の短時間に限定する(時間制限なしだと、ユーザーが同じ言葉を
+            // 繰り返した発話まで削ってしまう)。累積型ストリームが続く間は窓を延長する。
+            if !lastCommitted.isEmpty,
+               Date().timeIntervalSince(lastCommittedAt) < 1.0,
+               segment.hasPrefix(lastCommitted) {
+                segment = String(segment.dropFirst(lastCommitted.count))
+                lastCommittedAt = Date()
             }
-            liveSegment = segment
-            bestTranscript = Self.join(committedText, liveSegment)
-            partial = bestTranscript
-            if !segment.isEmpty { restartsWithoutProgress = 0 }
 
-            if result.isFinal {
-                // セグメント確定。累積して live をクリア。
-                committedText = Self.join(committedText, liveSegment)
+            // OS による発話確定(タスク終端の isFinal、または発話単位の metadata 付き結果)
+            let finalized = result.isFinal || result.speechRecognitionMetadata != nil
+
+            if finalized {
+                // この結果自体が確定文。同内容の二重確定は上の重複除去で空になる
+                let text = segment.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    committedText = Self.join(committedText, text)
+                    lastCommitted = result.bestTranscription.formattedString
+                    lastCommittedAt = Date()
+                    restartsWithoutProgress = 0
+                }
                 liveSegment = ""
                 bestTranscript = committedText
                 partial = committedText
+            } else {
+                // 暫定文は毎回丸ごと置き換える。内容比較で区切りを推測しない
+                // (認識途中の書き換えを区切りと誤検知すると同じ文が二重に累積するため)。
+                // 区切りの検出は OS の確定通知と無音タイマーに任せる
+                if segment != liveSegment {
+                    lastPartialChangeAt = Date()
+                }
+                liveSegment = segment
+                bestTranscript = Self.join(committedText, liveSegment)
+                partial = bestTranscript
+                if !segment.isEmpty { restartsWithoutProgress = 0 }
+            }
+
+            if result.isFinal {
                 if isRunning {
                     // 録音は継続中なので、新しいタスクで認識を続ける(前の内容は保持)
                     restartRecognition()
@@ -206,12 +299,12 @@ final class SpeechRecognizer: ObservableObject {
                 // ただし全く進展しないエラーが続く場合は無限ループを避けて停止。
                 restartsWithoutProgress += 1
                 if restartsWithoutProgress > 5 {
-                    isRunning = false
-                    stopAudio()
-                    finish(with: bestTranscript)
+                    // 諦めて停止するが、セッションは正常終了ルートに乗せて
+                    // ここまでの文字起こしを失わない(UI が録音中のまま固まらないように)
+                    commitLiveSegment()
+                    onAutoStop?()
                 } else {
-                    committedText = Self.join(committedText, liveSegment)
-                    liveSegment = ""
+                    commitLiveSegment()
                     restartRecognition()
                 }
             } else {
@@ -219,18 +312,6 @@ final class SpeechRecognizer: ObservableObject {
                 finish(with: bestTranscript)
             }
         }
-    }
-
-    // current が previous の継続(前方一致・小さな修正を含む)かどうかを判定し、
-    // そうでなければ新しいセグメントの開始とみなす。
-    private static func isNewSegment(previous: String, current: String) -> Bool {
-        guard !previous.isEmpty else { return false }
-        if current.hasPrefix(previous) { return false }        // 明確な継続(伸長)
-        // 認識のわずかな揺れ(末尾の言い直し等)を許容するため、先頭の一致で継続判定
-        let headLen = max(4, previous.count / 3)
-        let head = String(previous.prefix(headLen))
-        if current.hasPrefix(head) { return false }
-        return true
     }
 
     // 確定済みテキストと現在のセグメントを結合する。
@@ -244,9 +325,11 @@ final class SpeechRecognizer: ObservableObject {
     }
 
     private func finish(with text: String) {
+        stopFallbackWork?.cancel()
+        stopFallbackWork = nil
         guard let continuation = finishContinuation else {
-            task = nil
-            request = nil
+            // 継続待ちがない finish は何もしない(遅延実行された場合に
+            // 次のセッションの request/task を破壊しないこと)
             return
         }
         finishContinuation = nil

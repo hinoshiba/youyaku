@@ -38,6 +38,7 @@ final class AppState: ObservableObject {
     private var refineTask: Task<Void, Never>?
     private var dismissWork: DispatchWorkItem?
     private var isStopping = false
+    private var sessionHistoryID: UUID?   // このセッションの履歴エントリ(音声入力を先に保存)
     private var cancellables: Set<AnyCancellable> = []
 
     private init() {}
@@ -123,6 +124,7 @@ final class AppState: ObservableObject {
         statusMessage = nil
         transcript = ""
         refined = ""
+        sessionHistoryID = nil
 
         Task {
             let permission = await Permissions.ensureSpeechAndMic()
@@ -157,6 +159,9 @@ final class AppState: ObservableObject {
         defer { isStopping = false }
         playSound("Tink")
         let text = await speech.stop().trimmingCharacters(in: .whitespacesAndNewlines)
+        // await 中に esc 等でセッションが破棄された場合は何もしない
+        // (履歴は cancelSession 側で保存済み。二重保存やセッション復活を防ぐ)
+        guard phase == .recording else { return }
         transcript = text
 
         guard !text.isEmpty else {
@@ -164,13 +169,29 @@ final class AppState: ObservableObject {
             return
         }
 
+        // 変換の成否やキャンセルに関わらず、音声入力そのものを先に履歴へ残す
+        sessionHistoryID = history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+
         if settings.value.refineMode == .raw {
+            // 変換なしモード: 履歴は音声入力のみのエントリのまま
             refined = text
             phase = .result
             maybeInstantPaste()
         } else {
             refine()
         }
+    }
+
+    // このセッションの履歴エントリに変換結果を反映する(変換が実際に成功した時のみ呼ぶ)
+    private func recordRefinedToHistory() {
+        guard let id = sessionHistoryID else { return }
+        let s = settings.value
+        history.updateRefined(
+            id: id,
+            refined: refined,
+            mode: s.refineMode,
+            model: s.activeModelLabel
+        )
     }
 
     func refine() {
@@ -239,11 +260,13 @@ final class AppState: ObservableObject {
                 if self.refined.isEmpty {
                     self.refined = self.transcript
                     self.statusMessage = "整形結果が空だったため、認識結果をそのまま表示しています"
+                } else {
+                    self.recordRefinedToHistory()
                 }
                 self.phase = .result
                 self.maybeInstantPaste()
             } catch is CancellationError {
-                // dismiss 済み
+                // dismiss 済み(音声入力は履歴に保存済み)
             } catch {
                 guard self.phase == .refining else { return }
                 self.refined = self.transcript
@@ -273,7 +296,7 @@ final class AppState: ObservableObject {
     func accept() {
         guard phase == .result, !refined.isEmpty else { return }
         let s = settings.value
-        history.add(raw: transcript, refined: refined, mode: s.refineMode, model: s.refineMode == .raw ? "-" : s.activeModelLabel)
+        // 履歴は finishRecording(音声入力)と refine 成功時(変換結果)で保存済み
 
         let result = Paster.deliver(refined, paste: s.autoPaste, keepInClipboard: s.keepInClipboard)
         playSound("Bottle")
@@ -295,6 +318,14 @@ final class AppState: ObservableObject {
     }
 
     func cancelSession() {
+        // 録音中のキャンセルでも、聞き取れていた音声入力は履歴に残す
+        // (長時間の入力を誤操作で失わないための保全)
+        if phase == .recording {
+            let text = speech.partial.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+                history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+            }
+        }
         speech.cancel()
         refineTask?.cancel()
         refineTask = nil
