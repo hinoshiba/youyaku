@@ -54,17 +54,70 @@ struct SettingsView: View {
     // MARK: - ショートカット
 
     private var shortcutSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             sectionHeader("ショートカット", "どのアプリからでも音声入力を呼び出せます")
-            settingRow("音声入力の開始 / 停止") {
-                HotkeyRecorderView(combo: app.settings.value.hotkey) { newCombo in
-                    app.updateHotkey(newCombo)
+
+            settingRow("音声入力の開始 / 停止", help: "枠をクリックして好きなキーを入力(修飾キー、またはF1〜F20)") {
+                HStack(spacing: 8) {
+                    HotkeyRecorderView(combo: app.settings.value.hotkey) { newCombo in
+                        app.updateHotkey(newCombo)
+                    }
+                    if app.settings.value.hotkey != .default {
+                        Button {
+                            app.updateHotkey(.default)
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("デフォルト(⌥Space)に戻す")
+                    }
                 }
+            }
+
+            if !app.hotkeyActive {
+                Label("この組み合わせは他のアプリやシステムと競合しているため登録できませんでした。別のキーをお試しください(直前のショートカットは有効なままです)。",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 8) {
+                Text("候補:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                ForEach(Self.presets, id: \.display) { preset in
+                    let isCurrent = app.settings.value.hotkey == preset
+                    Button {
+                        app.updateHotkey(preset)
+                    } label: {
+                        Text(preset.display)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule().fill(isCurrent ? Brand.primary.opacity(0.18) : Color.primary.opacity(0.06))
+                            )
+                            .overlay(
+                                Capsule().strokeBorder(isCurrent ? Brand.primary.opacity(0.5) : .clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
             }
         }
         .padding(18)
         .card()
     }
+
+    // よく使う競合しにくい候補
+    private static let presets: [KeyCombo] = [
+        .default,                                                              // ⌥Space
+        KeyCombo(keyCode: 49, carbonModifiers: 4096 | 2048),                   // ⌃⌥Space
+        KeyCombo(keyCode: 49, carbonModifiers: 512 | 2048),                   // ⇧⌥Space
+        KeyCombo(keyCode: 96, carbonModifiers: 0),                            // F5
+    ]
 
     // MARK: - 前提プリセット
 
@@ -400,7 +453,7 @@ struct HotkeyRecorderView: View {
         Button {
             recording ? stopRecording() : startRecording()
         } label: {
-            Text(recording ? "キーを入力…(修飾キー必須)" : combo.display)
+            Text(recording ? "キーを入力…" : combo.display)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(recording ? Color.orange : Color.primary)
                 .frame(minWidth: 130)

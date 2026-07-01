@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
     @Published var transcript = ""
     @Published var refined = ""
     @Published var statusMessage: String?
+    @Published var hotkeyActive = true   // ショートカットの登録に成功しているか
 
     let settings = SettingsStore()
 
@@ -63,7 +64,7 @@ final class AppState: ObservableObject {
     func bootstrap() {
         bridgeChildChanges()
         HotkeyManager.shared.onHotkey = { [weak self] in self?.toggle() }
-        HotkeyManager.shared.register(settings.value.hotkey)
+        hotkeyActive = HotkeyManager.shared.register(settings.value.hotkey)
         speech.onAutoStop = { [weak self] in
             Task { await self?.finishRecording() }
         }
@@ -88,9 +89,16 @@ final class AppState: ObservableObject {
         }
     }
 
-    func updateHotkey(_ combo: KeyCombo) {
-        settings.value.hotkey = combo
-        HotkeyManager.shared.register(combo)
+    /// ショートカットを変更する。登録に成功したら true。
+    /// 競合などで失敗した場合は設定を元に戻し、既存のショートカットを維持する。
+    @discardableResult
+    func updateHotkey(_ combo: KeyCombo) -> Bool {
+        let ok = HotkeyManager.shared.register(combo)
+        if ok {
+            settings.value.hotkey = combo
+        }
+        hotkeyActive = ok
+        return ok
     }
 
     // MARK: - セッション制御
