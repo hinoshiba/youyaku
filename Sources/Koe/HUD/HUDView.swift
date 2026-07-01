@@ -206,6 +206,7 @@ struct HUDView: View {
                 keyHint("esc", tr("中断", "Cancel"))
             case .result:
                 keyHint("↩", app.settings.value.autoPaste ? tr("貼り付け", "Paste") : tr("コピー", "Copy"))
+                keyHint("⌘↩", tr("続きから再開", "Resume"))
                 keyHint("⌘C", tr("コピーのみ", "Copy Only"))
                 if app.settings.value.refineMode != .raw {
                     keyHint("⌘R", tr("整形をやり直す", "Refine Again"))

@@ -13,7 +13,12 @@ final class SpeechRecognizer: ObservableObject {
     @Published private(set) var partial: String = ""
     private(set) var isRunning = false
 
-    var onAutoStop: (() -> Void)?
+    enum AutoStopReason {
+        case silence              // ユーザー設定の「無音で自動停止」
+        case recognitionFailure   // 認識エラーが続き継続できなかった(再開可能)
+    }
+
+    var onAutoStop: ((AutoStopReason) -> Void)?
 
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -47,9 +52,31 @@ final class SpeechRecognizer: ObservableObject {
     private var lastPartialChangeAt = Date()  // 暫定文が最後に変化した時刻(無音判定用)
     private var taskGeneration = 0            // 再開前の古いタスクの遅延コールバックを無視するための世代番号
     private var restartsWithoutProgress = 0   // エラー連発時の無限再開を防ぐ
-    private var segmentTimer: Timer?          // 無音での能動的区切り
+    private var segmentTimer: Timer?          // 無音での能動的区切り + 監視(下記)
+    private var taskStartedAt = Date()        // 現在の認識タスクの開始時刻
+    private var isReconfiguring = false        // オーディオ再構築中(通知の連鎖を防ぐ)
 
     private static let segmentSilence: TimeInterval = 1.6
+    // 声は入っているのに認識結果が止まっている(タスクの無音死)とみなすまでの時間
+    private static let stallTimeout: TimeInterval = 6.0
+    // macOS の音声認識はタスクあたり約 1 分の連続認識制限がある(Apple 公式ガイダンス)。
+    // 上限に当たって切断される前に、発話の切れ目でタスクを予防的に継ぎ直す
+    private static let taskRotateAfter: TimeInterval = 45
+    private static let taskHardRotateAfter: TimeInterval = 55
+    // 予防交代を語の途中で行わないための最小の無音幅(0.4 秒だと単語を割ることがある)
+    private static let softRotateGap: TimeInterval = 0.8
+
+    init() {
+        // 入出力デバイスの変更(AirPods 接続等)でオーディオエンジンが停止すると
+        // 録音が無言で死ぬため、通知を受けて音声チェーンを組み直して継続する
+        NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleAudioConfigChange() }
+        }
+    }
 
     struct Config {
         var locale: Locale
@@ -68,7 +95,9 @@ final class SpeechRecognizer: ObservableObject {
         partial = text
     }
 
-    func start(_ config: Config) throws {
+    /// 録音を開始する。resumingFrom に既存の文字起こしを渡すと、
+    /// その続きとして認識を再開する(中断からの再開機能)
+    func start(_ config: Config, resumingFrom: String = "") throws {
         guard !isRunning else { return }
 
         guard let rec = SFSpeechRecognizer(locale: config.locale), rec.isAvailable else {
@@ -77,12 +106,13 @@ final class SpeechRecognizer: ObservableObject {
         recognizer = rec
 
         activeConfig = config
-        committedText = ""
+        // 再開時は既存の文字起こしを確定済みテキストとして引き継ぐ
+        committedText = resumingFrom.trimmingCharacters(in: .whitespacesAndNewlines)
         liveSegment = ""
         lastCommitted = ""
         lastCommittedAt = .distantPast
-        bestTranscript = ""
-        partial = ""
+        bestTranscript = committedText
+        partial = committedText
         lastVoiceAt = Date()
         lastPartialChangeAt = Date()
         restartsWithoutProgress = 0
@@ -90,6 +120,16 @@ final class SpeechRecognizer: ObservableObject {
         request = req
         setTapRequest(req)
 
+        try startAudio()
+
+        isRunning = true
+        startTask()
+        startAutoStopTimer(config.autoStopAfter)
+        startSegmentTimer()
+    }
+
+    // マイク入力のタップを張り、オーディオエンジンを開始する
+    private func startAudio() throws {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else {
@@ -113,11 +153,42 @@ final class SpeechRecognizer: ObservableObject {
             input.removeTap(onBus: 0)
             throw KoeError(tr("オーディオエンジンを開始できません: \(error.localizedDescription)", "Could not start the audio engine: \(error.localizedDescription)"))
         }
+    }
 
-        isRunning = true
-        startTask()
-        startAutoStopTimer(config.autoStopAfter)
-        startSegmentTimer()
+    // 入出力デバイスの変更でエンジンが停止した場合、音声チェーンを組み直して録音を継続する
+    private func handleAudioConfigChange() {
+        // engine.start() 自体がこの通知を再発行し得るため、再構築中は無視して連鎖を防ぐ
+        guard isRunning, !isReconfiguring, let config = activeConfig, let rec = recognizer else { return }
+        isReconfiguring = true
+        defer {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.isReconfiguring = false
+            }
+        }
+
+        commitLiveSegment()
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
+
+        // 先に新リクエストへ切り替えてからエンジンを再開する
+        // (新エンジンの音声が古いリクエストへ流れ込んで取りこぼすのを防ぐ)
+        task?.cancel()
+        task = nil
+        let newRequest = makeRequest(config, recognizer: rec)
+        request = newRequest
+        setTapRequest(newRequest)
+        liveSegment = ""
+        lastCommitted = ""
+        lastCommittedAt = .distantPast
+        lastPartialChangeAt = Date()
+
+        do {
+            try startAudio()
+            startTask()
+        } catch {
+            // 新しい入力デバイスが使えない場合はセッションを正常終了して内容を保全する
+            onAutoStop?(.recognitionFailure)
+        }
     }
 
     private func makeRequest(_ config: Config, recognizer rec: SFSpeechRecognizer) -> SFSpeechAudioBufferRecognitionRequest {
@@ -137,6 +208,7 @@ final class SpeechRecognizer: ObservableObject {
     private func startTask() {
         guard let rec = recognizer, let req = request else { return }
         taskGeneration += 1
+        taskStartedAt = Date()
         let gen = taskGeneration
         task = rec.recognitionTask(with: req) { [weak self] result, error in
             Task { @MainActor [weak self] in self?.handle(result, error, generation: gen) }
@@ -165,15 +237,45 @@ final class SpeechRecognizer: ObservableObject {
         startTask()
     }
 
-    // 無音が続いたら発話を確定し、タスクを継ぎ直す(能動的な区切り)。
-    // OS の確定通知(metadata)が来ない環境でも、確定済みテキストが失われないようにする。
+    // 定期監視: ①無音での能動的区切り ②認識タスクの無音死からの自動復旧
+    // ③OS の連続認識制限(約1分)に達する前の予防的な継ぎ直し
     private func startSegmentTimer() {
         segmentTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, self.isRunning, !self.liveSegment.isEmpty else { return }
-                // 「マイクレベル」と「暫定文の変化」の両方が止まっている時だけ区切る
-                let quietFor = Date().timeIntervalSince(max(self.lastVoiceAt, self.lastPartialChangeAt))
-                if quietFor > Self.segmentSilence {
+                guard let self, self.isRunning else { return }
+                let now = Date()
+
+                // ① 無音での区切り(「マイクレベル」と「暫定文の変化」の両方が止まっている時)
+                if !self.liveSegment.isEmpty {
+                    let quietFor = now.timeIntervalSince(max(self.lastVoiceAt, self.lastPartialChangeAt))
+                    if quietFor > Self.segmentSilence {
+                        self.commitLiveSegment()
+                        self.restartRecognition()
+                        return
+                    }
+                }
+
+                // ② 声は入り続けているのに認識結果が止まっている = タスクが無言で死んでいる。
+                //    ここまでの内容を保持したまま自動で継ぎ直す(ユーザーには中断が見えない)
+                let voiceActive = now.timeIntervalSince(self.lastVoiceAt) < 1.0
+                if voiceActive, now.timeIntervalSince(self.lastPartialChangeAt) > Self.stallTimeout {
+                    self.commitLiveSegment()
+                    self.restartRecognition()
+                    return
+                }
+
+                // ③ 連続認識の上限(約1分)に当たる前に予防交代。
+                //    回すべき対象(暫定文または直近の発話)がある時だけ行う。
+                //    長い無音中に空タスクを無駄に作り直さない(無用な churn とカウンタ誤累積を防ぐ)
+                let taskAge = now.timeIntervalSince(self.taskStartedAt)
+                let quiet = now.timeIntervalSince(self.lastVoiceAt)
+                let hasContent = !self.liveSegment.isEmpty || quiet < 1.0
+                if hasContent,
+                   taskAge > Self.taskHardRotateAfter ||
+                   (taskAge > Self.taskRotateAfter && quiet > Self.softRotateGap) {
+                    // 上限まで生きた=パイプラインは正常。エラーカウンタをクリアして
+                    // 無音中のタスクエラー累積による誤停止を防ぐ
+                    self.restartsWithoutProgress = 0
                     self.commitLiveSegment()
                     self.restartRecognition()
                 }
@@ -295,16 +397,20 @@ final class SpeechRecognizer: ObservableObject {
 
         if error != nil {
             if isRunning {
-                // 録音中のエラー(セグメント上限など)は再開して継続。
-                // ただし全く進展しないエラーが続く場合は無限ループを避けて停止。
-                restartsWithoutProgress += 1
+                commitLiveSegment()
+                // 声が入っているのに失敗する時だけ「進展なし」として数える。
+                // 無音中のタスクエラー(no speech detected 等)は正常なので数えず、
+                // カウンタを戻す(長い沈黙で録音が勝手に止まるのを防ぐ)
+                if Date().timeIntervalSince(lastVoiceAt) < 3.0 {
+                    restartsWithoutProgress += 1
+                } else {
+                    restartsWithoutProgress = 0
+                }
                 if restartsWithoutProgress > 5 {
                     // 諦めて停止するが、セッションは正常終了ルートに乗せて
                     // ここまでの文字起こしを失わない(UI が録音中のまま固まらないように)
-                    commitLiveSegment()
-                    onAutoStop?()
+                    onAutoStop?(.recognitionFailure)
                 } else {
-                    commitLiveSegment()
                     restartRecognition()
                 }
             } else {
@@ -356,7 +462,7 @@ final class SpeechRecognizer: ObservableObject {
                 if !self.bestTranscript.isEmpty, Date().timeIntervalSince(self.lastVoiceAt) > after {
                     self.autoStopTimer?.invalidate()
                     self.autoStopTimer = nil
-                    self.onAutoStop?()
+                    self.onAutoStop?(.silence)
                 }
             }
         }

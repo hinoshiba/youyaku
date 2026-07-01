@@ -47,6 +47,17 @@ final class HistoryStore: ObservableObject {
         save()
     }
 
+    /// 再開セッションの終了時に、同じエントリの音声入力を延長後の内容へ更新する。
+    /// 日付を更新するので、新しい順の並びを保つため先頭へ移動する
+    func updateRaw(id: UUID, raw: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        var entry = entries.remove(at: index)
+        entry.raw = raw
+        entry.date = Date()
+        entries.insert(entry, at: 0)
+        save()
+    }
+
     func delete(_ entry: HistoryEntry) {
         entries.removeAll { $0.id == entry.id }
         save()

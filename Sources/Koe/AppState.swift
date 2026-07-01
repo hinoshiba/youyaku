@@ -66,8 +66,8 @@ final class AppState: ObservableObject {
         bridgeChildChanges()
         HotkeyManager.shared.onHotkey = { [weak self] in self?.toggle() }
         hotkeyActive = HotkeyManager.shared.register(settings.value.hotkey)
-        speech.onAutoStop = { [weak self] in
-            Task { await self?.finishRecording() }
+        speech.onAutoStop = { [weak self] reason in
+            Task { await self?.finishRecording(autoStopReason: reason) }
         }
         // ダウンロード=そのモデルを使いたいという意思表示なので、完了時に自動で切り替える
         modelStore.onInstalled = { [weak self] fileName in
@@ -125,7 +125,23 @@ final class AppState: ObservableObject {
         transcript = ""
         refined = ""
         sessionHistoryID = nil
+        beginRecording(resumingFrom: "")
+    }
 
+    /// 確定画面から、ここまでの文字起こしを保持したまま録音を再開する(⌘↩)。
+    /// 意図せず中断された長い口述を失わずに続けるための機能
+    func resumeRecording() {
+        guard phase == .result, !transcript.isEmpty else { return }
+        dismissWork?.cancel()
+        refineTask?.cancel()
+        refineTask = nil
+        statusMessage = nil
+        refined = ""
+        // sessionHistoryID は維持し、finishRecording で同じ履歴エントリを更新する
+        beginRecording(resumingFrom: transcript)
+    }
+
+    private func beginRecording(resumingFrom base: String) {
         Task {
             let permission = await Permissions.ensureSpeechAndMic()
             guard permission.ok else {
@@ -141,7 +157,7 @@ final class AppState: ObservableObject {
                     punctuation: s.punctuation,
                     vocabulary: s.vocabularyList,
                     autoStopAfter: s.autoStop ? s.autoStopSeconds : nil
-                ))
+                ), resumingFrom: base)
                 phase = .recording
                 hud.show()
                 playSound("Pop")
@@ -152,7 +168,13 @@ final class AppState: ObservableObject {
         }
     }
 
-    func finishRecording() async {
+    // 認識が意図せず中断された時に、確定画面へ出す再開案内
+    private var resumeHintText: String {
+        tr("認識が中断されたため、ここまでの内容を確定しました。⌘↩ で続きから再開できます",
+           "Recognition was interrupted; your dictation so far has been kept. Press ⌘↩ to resume.")
+    }
+
+    func finishRecording(autoStopReason: SpeechRecognizer.AutoStopReason? = nil) async {
         // await 中に phase が .recording のままになるため、再入をフラグで防ぐ
         guard phase == .recording, !isStopping else { return }
         isStopping = true
@@ -169,16 +191,29 @@ final class AppState: ObservableObject {
             return
         }
 
-        // 変換の成否やキャンセルに関わらず、音声入力そのものを先に履歴へ残す
-        sessionHistoryID = history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+        // 変換の成否やキャンセルに関わらず、音声入力そのものを先に履歴へ残す。
+        // 再開セッションの場合は同じエントリを更新する(重複エントリを作らない)
+        if let id = sessionHistoryID {
+            history.updateRaw(id: id, raw: text)
+        } else {
+            sessionHistoryID = history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+        }
+
+        // 認識が中断された場合は、ユーザーが話し終えたわけではないので
+        // 自動貼り付けはせず、確定画面に留めて再開手段を案内する
+        let interrupted = autoStopReason == .recognitionFailure
 
         if settings.value.refineMode == .raw {
             // 変換なしモード: 履歴は音声入力のみのエントリのまま
             refined = text
             phase = .result
-            maybeInstantPaste()
+            if interrupted {
+                statusMessage = resumeHintText
+            } else {
+                maybeInstantPaste()
+            }
         } else {
-            refine()
+            refine(interrupted: interrupted)
         }
     }
 
@@ -194,7 +229,7 @@ final class AppState: ObservableObject {
         )
     }
 
-    func refine() {
+    func refine(interrupted: Bool = false) {
         let s = settings.value
 
         let stream: AsyncThrowingStream<String, Error>
@@ -264,7 +299,15 @@ final class AppState: ObservableObject {
                     self.recordRefinedToHistory()
                 }
                 self.phase = .result
-                self.maybeInstantPaste()
+                if interrupted {
+                    // 中断由来: 自動貼り付けせず再開案内を残す
+                    // (整形側で既に別の案内が出ている場合はそちらを優先)
+                    if self.statusMessage == nil {
+                        self.statusMessage = self.resumeHintText
+                    }
+                } else {
+                    self.maybeInstantPaste()
+                }
             } catch is CancellationError {
                 // dismiss 済み(音声入力は履歴に保存済み)
             } catch {
@@ -321,11 +364,16 @@ final class AppState: ObservableObject {
 
     func cancelSession() {
         // 録音中のキャンセルでも、聞き取れていた音声入力は履歴に残す
-        // (長時間の入力を誤操作で失わないための保全)
+        // (長時間の入力を誤操作で失わないための保全)。
+        // 再開セッションなら既存エントリを更新し、重複を作らない
         if phase == .recording {
             let text = speech.partial.trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty {
-                history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+                if let id = sessionHistoryID {
+                    history.updateRaw(id: id, raw: text)
+                } else {
+                    history.add(raw: text, refined: "", mode: settings.value.refineMode, model: "-")
+                }
             }
         }
         speech.cancel()
@@ -368,7 +416,11 @@ final class AppState: ObservableObject {
             case .recording:
                 Task { await finishRecording() }
             case .result:
-                accept()
+                if event.modifierFlags.contains(.command) {
+                    resumeRecording()   // ⌘↩ = 続きから再開
+                } else {
+                    accept()
+                }
             case .error:
                 cancelSession()
             default:
