@@ -1,0 +1,81 @@
+# Koe(コエ)— AIのための音声入力
+
+**どのアプリでも `⌥Space` を押して話すだけ。ローカルLLMがあなたの言葉を、AIに伝わる指示文に整えます。**
+
+Koe は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入力を音声で行うための macOS メニューバーアプリです。**追加インストール一切不要** — 推論エンジン(llama.cpp)を内蔵し、モデルはアプリ内から直接ダウンロード。音声認識も文章整形もすべて Mac の中で完結し、データが外部に送信されることはありません。
+
+## 特徴
+
+- **完全スタンドアロン** — llama.cpp を内蔵。モデル(GGUF)は Hugging Face からアプリ内でワンクリックDL・削除・切替
+- **グローバルショートカット** — どのアプリの上でも `⌥Space`(変更可)で Spotlight 風の入力パネルを呼び出し
+- **オンデバイス音声認識** — macOS 内蔵エンジンによる日本語認識。句読点自動挿入・専門用語辞書対応
+- **ローカルLLMによる整形** — フィラー(えー、あの…)や言い直しを除去し、構造化された AI 命令文に再構成
+- **3つのモード** — そのまま / 整文 / AI命令化 をワンタップで切替
+- **前提プリセット** — 「使用技術は TypeScript」「出力は箇条書き」などの背景情報をプロジェクトごとに登録・切替
+- **日本語重視のモデルカタログ** — Qwen3 / ELYZA JP(日本語特化)/ Gemma 3 など、検証済みモデルを厳選
+- **Ollama 連携(任意)** — すでに Ollama をお使いなら、設定でエンジンを切り替えてそのまま利用可能
+- **カーソル位置へ自動貼り付け** — 確定と同時に最前面アプリへ入力(クリップボード復元オプション付き)
+- **履歴** — 過去の入力を検索・再コピー
+
+## 必要環境
+
+- macOS 14 (Sonoma) 以降 / Apple Silicon 推奨(Metal GPU で推論)
+- メモリ 8GB 以上(4B モデル使用時。ELYZA 8B は 16GB 推奨)
+
+## ビルド
+
+```bash
+./build.sh          # 依存取得 → ビルド → dist/Koe.app 生成まで自動
+open dist/Koe.app
+```
+
+Xcode 不要(Command Line Tools のみでビルド可能)。
+
+`build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)を `Vendor/` にダウンロードします。この xcframework は再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
+
+## 初回セットアップ
+
+1. `dist/Koe.app` を起動(必要なら `/Applications` へコピー)
+2. ホーム画面のチェックリストに従って **マイク / 音声認識** を許可
+3. 自動貼り付けを使う場合は **アクセシビリティ** を許可(任意)
+4. 「モデル」画面のカタログからモデルをダウンロード(推奨: Qwen3 4B / お試し: Qwen3 0.6B)
+
+## 使い方
+
+| 操作 | キー |
+|---|---|
+| 入力パネルを開く / 録音停止 | `⌥Space`(変更可) |
+| 停止して整形 | `↩` |
+| 整形結果を貼り付け | `↩` |
+| コピーのみ | `⌘C` |
+| 整形をやり直す | `⌘R` |
+| キャンセル / 閉じる | `esc` |
+
+## アーキテクチャ
+
+```
+Sources/Koe/
+├── KoeApp.swift          # エントリポイント(MenuBarExtra)
+├── AppState.swift        # セッション状態機械(録音→整形→確定)
+├── Speech/               # AVAudioEngine + SFSpeechRecognizer(オンデバイス)
+├── LLM/
+│   ├── LlamaEngine.swift    # 内蔵 llama.cpp エンジン(Metal 推論・チャットテンプレート)
+│   ├── ModelStore.swift     # GGUF ダウンロード管理(進捗・検証・容量チェック)
+│   ├── BuiltinCatalog.swift # 検証済みモデルカタログ(HF 直リンク)
+│   ├── OllamaClient.swift   # Ollama バックエンド(任意)
+│   └── Refiner.swift        # 整形プロンプト構築
+├── Hotkey/               # Carbon グローバルホットキー
+├── HUD/                  # 非アクティブ化フローティングパネル(NSPanel + SwiftUI)
+├── UI/                   # メインウィンドウ(ホーム/モデル/履歴/設定)
+└── Support/              # 貼り付け・権限・テーマ・スナップショット・セルフテスト
+```
+
+- 設定と履歴は `~/Library/Application Support/Koe/` に JSON で保存、モデルは同 `Models/` に GGUF で保存
+- `Koe --snapshot <dir>` で全画面をオフスクリーンレンダリング(UI 検証用)
+- `Koe --selftest <gguf> [プロンプト]` で内蔵エンジンの推論を CLI から検証
+
+## プライバシー
+
+- 音声認識は `requiresOnDeviceRecognition` によりデバイス上で実行(設定で変更可)
+- LLM 推論はアプリ内蔵エンジン(llama.cpp + Metal)でローカル実行
+- 外部通信はモデルのダウンロード時(Hugging Face)のみ。テレメトリなし

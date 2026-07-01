@@ -1,0 +1,13 @@
+# Swift ビルド成果物
+.build/
+dist/
+
+# ベンダー依存(Scripts/fetch-vendor.sh で取得する再取得可能なバイナリ)
+Vendor/
+
+# macOS / エディタ
+.DS_Store
+*.swp
+
+# ローカル状態
+.claude/scheduled_tasks.lock
