@@ -66,7 +66,7 @@ func write(_ rep: NSBitmapImageRep, to path: String) {
     try! data.write(to: URL(fileURLWithPath: path))
 }
 
-let iconsetPath = "\(outDir)/Koe.iconset"
+let iconsetPath = "\(outDir)/Youyaku.iconset"
 try? FileManager.default.createDirectory(atPath: iconsetPath, withIntermediateDirectories: true)
 
 let entries: [(String, Int)] = [

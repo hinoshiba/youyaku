@@ -1,0 +1,74 @@
+Youyaku — 第三者ソフトウェアおよびモデルのライセンス表示
+Third-Party Software and Model Notices
+================================================================================
+
+本アプリ「Youyaku」は、以下の第三者ソフトウェアを利用しています。
+This application ("Youyaku") includes and uses the following third-party software.
+
+
+--------------------------------------------------------------------------------
+1. llama.cpp / ggml  (推論エンジン / inference engine)
+--------------------------------------------------------------------------------
+https://github.com/ggml-org/llama.cpp
+https://github.com/ggml-org/ggml
+
+MIT License
+
+Copyright (c) 2023-2026 The ggml authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+================================================================================
+言語モデルについて / About the language models
+================================================================================
+Youyaku はモデルの重み(GGUF)を同梱していません。利用者が選んだモデルを、
+Hugging Face から利用者の端末へ直接ダウンロードします。各モデルは配布元の
+ライセンスに従います。主なモデルの帰属・ライセンスは以下のとおりです。
+
+Youyaku does not bundle any model weights. Models (GGUF) are downloaded directly
+to the user's device from Hugging Face at the user's choice, and each is governed
+by its own license. Attribution and licenses for the curated models:
+
+- Qwen3 (4B / 1.7B / 0.6B)
+  © Alibaba Cloud. Licensed under the Apache License, Version 2.0.
+  https://www.apache.org/licenses/LICENSE-2.0
+
+- ELYZA JP 8B  (Llama-3-ELYZA-JP-8B)
+  Built with Meta Llama 3.
+  Licensed under the Meta Llama 3 Community License,
+  Copyright (c) Meta Platforms, Inc. All Rights Reserved.
+  https://www.llama.com/llama3/license/
+  Meta Acceptable Use Policy: https://www.llama.com/llama3/use-policy/
+
+- Llama 3.2 3B  (Llama-3.2-3B-Instruct)
+  Built with Llama.
+  Licensed under the Llama 3.2 Community License,
+  Copyright (c) Meta Platforms, Inc. All Rights Reserved.
+  https://www.llama.com/llama3_2/license/
+  Meta Acceptable Use Policy: https://www.llama.com/llama3_2/use-policy/
+
+- Gemma 3 4B
+  Gemma is provided under and subject to the Gemma Terms of Use.
+  https://ai.google.dev/gemma/terms
+  Gemma Prohibited Use Policy: https://ai.google.dev/gemma/prohibited_use_policy
+
+各モデルの利用にあたっては、上記の各ライセンスおよび使用ポリシーに従ってください。
+When using each model, please comply with its license and acceptable/prohibited
+use policy linked above.

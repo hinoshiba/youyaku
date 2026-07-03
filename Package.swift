@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "Koe",
+    name: "Youyaku",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "Koe",
+            name: "Youyaku",
             dependencies: ["llama"],
-            path: "Sources/Koe"
+            path: "Sources/Youyaku"
         ),
         // llama.cpp 公式リリース(b9859)の xcframework
         .binaryTarget(

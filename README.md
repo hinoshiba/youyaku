@@ -1,8 +1,8 @@
-# Koe(コエ)— AIのための音声入力
+# Youyaku(ようやく)— AIのための音声入力
 
 **どのアプリでも `⌥Space` を押して話すだけ。ローカルLLMがあなたの言葉を、AIに伝わる指示文に整えます。**
 
-Koe は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入力を音声で行うための macOS メニューバーアプリです。**追加インストール一切不要** — 推論エンジン(llama.cpp)を内蔵し、モデルはアプリ内から直接ダウンロード。音声認識も文章整形もすべて Mac の中で完結し、データが外部に送信されることはありません。
+Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入力を音声で行うための macOS メニューバーアプリです。**追加インストール一切不要** — 推論エンジン(llama.cpp)を内蔵し、モデルはアプリ内から直接ダウンロード。音声認識も文章整形もすべて Mac の中で完結し、データが外部に送信されることはありません。
 
 ## 特徴
 
@@ -27,8 +27,8 @@ Koe は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入
 ## ビルド
 
 ```bash
-./build.sh          # 依存取得 → ビルド → dist/Koe.app 生成まで自動
-open dist/Koe.app
+./build.sh          # 依存取得 → ビルド → dist/Youyaku.app 生成まで自動
+open dist/Youyaku.app
 ```
 
 Xcode 不要(Command Line Tools のみでビルド可能)。
@@ -37,7 +37,7 @@ Xcode 不要(Command Line Tools のみでビルド可能)。
 
 ## 初回セットアップ
 
-1. `dist/Koe.app` を起動(必要なら `/Applications` へコピー)
+1. `dist/Youyaku.app` を起動(必要なら `/Applications` へコピー)
 2. ホーム画面のチェックリストに従って **マイク / 音声認識** を許可
 3. 自動貼り付けを使う場合は **アクセシビリティ** を許可(任意)
 4. 「モデル」画面のカタログからモデルをダウンロード(推奨: Qwen3 4B / お試し: Qwen3 0.6B)
@@ -57,8 +57,8 @@ Xcode 不要(Command Line Tools のみでビルド可能)。
 ## アーキテクチャ
 
 ```
-Sources/Koe/
-├── KoeApp.swift          # エントリポイント(MenuBarExtra)
+Sources/Youyaku/
+├── YouyakuApp.swift          # エントリポイント(MenuBarExtra)
 ├── AppState.swift        # セッション状態機械(録音→整形→確定)
 ├── Speech/               # AVAudioEngine + SFSpeechRecognizer(オンデバイス)
 ├── LLM/
@@ -73,9 +73,9 @@ Sources/Koe/
 └── Support/              # 貼り付け・権限・テーマ・スナップショット・セルフテスト
 ```
 
-- 設定と履歴は `~/Library/Application Support/Koe/` に JSON で保存、モデルは同 `Models/` に GGUF で保存
-- `Koe --snapshot <dir>` で全画面をオフスクリーンレンダリング(UI 検証用)
-- `Koe --selftest <gguf> [プロンプト]` で内蔵エンジンの推論を CLI から検証
+- 設定と履歴は `~/Library/Application Support/Youyaku/` に JSON で保存、モデルは同 `Models/` に GGUF で保存
+- `Youyaku --snapshot <dir>` で全画面をオフスクリーンレンダリング(UI 検証用)
+- `Youyaku --selftest <gguf> [プロンプト]` で内蔵エンジンの推論を CLI から検証
 
 ## プライバシー
 

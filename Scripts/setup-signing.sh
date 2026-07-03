@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Koe 用のローカル署名をセットアップする(一度だけ実行)。
+# Youyaku 用のローカル署名をセットアップする(一度だけ実行)。
 #
 # 背景: ad-hoc 署名アプリへの macOS の許可(アクセシビリティ等)はバイナリの
 # ハッシュ(cdhash)に紐づくため、再ビルドのたびに無効化される。
@@ -9,9 +9,9 @@
 # 実行の最後に macOS のパスワードダイアログが 1 回表示される(証明書の信頼設定)。
 set -e
 
-CERT_NAME="Koe Local Signing"
-CONFIG_DIR="$HOME/.config/koe"
-KEYCHAIN="$HOME/Library/Keychains/koe-codesign.keychain-db"
+CERT_NAME="Youyaku Local Signing"
+CONFIG_DIR="$HOME/.config/youyaku"
+KEYCHAIN="$HOME/Library/Keychains/youyaku-codesign.keychain-db"
 PASS_FILE="$CONFIG_DIR/keychain-pass"
 
 if security find-identity -v -p codesigning "$KEYCHAIN" 2>/dev/null | grep -q "$CERT_NAME"; then
@@ -45,7 +45,7 @@ cp "$TMP/cert.pem" "$CONFIG_DIR/codesign-cert.pem"   # 信頼を外す時のた�
 
 echo "==> 2/5 PKCS#12 に変換"
 /usr/bin/openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-    -name "$CERT_NAME" -out "$TMP/cert.p12" -passout pass:koe-tmp 2>/dev/null
+    -name "$CERT_NAME" -out "$TMP/cert.p12" -passout pass:youyaku-tmp 2>/dev/null
 
 echo "==> 3/5 専用キーチェーンを作成してインポート"
 KC_PASS=$(/usr/bin/openssl rand -hex 16)
@@ -54,7 +54,7 @@ security delete-keychain "$KEYCHAIN" 2>/dev/null || true
 security create-keychain -p "$KC_PASS" "$KEYCHAIN"
 security set-keychain-settings "$KEYCHAIN"          # 自動ロックしない
 security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
-security import "$TMP/cert.p12" -k "$KEYCHAIN" -P koe-tmp -T /usr/bin/codesign
+security import "$TMP/cert.p12" -k "$KEYCHAIN" -P youyaku-tmp -T /usr/bin/codesign
 security set-key-partition-list -S "apple-tool:,apple:,codesign:" -s -k "$KC_PASS" "$KEYCHAIN" >/dev/null
 
 echo "==> 4/5 キーチェーン検索リストへ追加(既存のリストは維持)"

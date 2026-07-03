@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 # llama.cpp のリリースタグ(GitHub のリリース資産はタグ単位で不変)。
-# 更新する場合は Sources/Koe/LLM/LlamaEngine.swift が使う API との整合を確認すること。
+# 更新する場合は Sources/Youyaku/LLM/LlamaEngine.swift が使う API との整合を確認すること。
 LLAMA_VERSION="b9859"
 ASSET="llama-${LLAMA_VERSION}-xcframework.zip"
 URL="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_VERSION}/${ASSET}"
@@ -20,7 +20,7 @@ fi
 
 echo "==> llama.xcframework (${LLAMA_VERSION}, 約 242MB) をダウンロード"
 mkdir -p Vendor
-TMP="$(mktemp -t koe-llama).zip"
+TMP="$(mktemp -t youyaku-llama).zip"
 trap 'rm -f "$TMP"' EXIT
 
 curl -fL --retry 3 -o "$TMP" "$URL"

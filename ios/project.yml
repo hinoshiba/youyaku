@@ -1,6 +1,6 @@
-name: Koe
+name: Youyaku
 options:
-  bundleIdPrefix: com.koe
+  bundleIdPrefix: com.youyaku
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -15,14 +15,15 @@ settings:
     TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
 
 targets:
-  Koe:
+  Youyaku:
     type: application
     platform: iOS
     info:
-      path: Koe/Info.plist
+      path: Youyaku/Info.plist
       properties:
-        CFBundleDisplayName: Koe
+        CFBundleDisplayName: Youyaku
         LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         NSMicrophoneUsageDescription: 音声入力のためにマイクを使用します。
         NSSpeechRecognitionUsageDescription: 話した内容をテキストに変換するために音声認識を使用します。認識はデバイス上で行われます。
@@ -35,25 +36,30 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.koe.voiceinput.ios
+        PRODUCT_BUNDLE_IDENTIFIER: com.youyaku.voiceinput.ios
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
     sources:
       # iOS 専用コード
-      - path: Koe
+      - path: Youyaku
         excludes:
           - Info.plist
+      # 第三者ライセンス表記(バンドルにリソースとして同梱)
+      - path: ../THIRD_PARTY_LICENSES.txt
+        buildPhase: resources
+      - path: ../Sources/Youyaku/Support/Licenses.swift
+      # ※ プライバシーマニフェスト(Youyaku/PrivacyInfo.xcprivacy)は上の `- path: Youyaku` に含まれる
       # macOS 版と共有するプラットフォーム非依存コア
-      - path: ../Sources/Koe/Models/Settings.swift
-      - path: ../Sources/Koe/Models/HistoryStore.swift
-      - path: ../Sources/Koe/LLM/LlamaEngine.swift
-      - path: ../Sources/Koe/LLM/Refiner.swift
-      - path: ../Sources/Koe/LLM/BuiltinCatalog.swift
-      - path: ../Sources/Koe/LLM/ModelStore.swift
-      - path: ../Sources/Koe/Speech/SpeechRecognizer.swift
-      - path: ../Sources/Koe/Support/L10n.swift
-      - path: ../Sources/Koe/Support/Theme.swift
-      - path: ../Sources/Koe/HUD/WaveformView.swift
+      - path: ../Sources/Youyaku/Models/Settings.swift
+      - path: ../Sources/Youyaku/Models/HistoryStore.swift
+      - path: ../Sources/Youyaku/LLM/LlamaEngine.swift
+      - path: ../Sources/Youyaku/LLM/Refiner.swift
+      - path: ../Sources/Youyaku/LLM/BuiltinCatalog.swift
+      - path: ../Sources/Youyaku/LLM/ModelStore.swift
+      - path: ../Sources/Youyaku/Speech/SpeechRecognizer.swift
+      - path: ../Sources/Youyaku/Support/L10n.swift
+      - path: ../Sources/Youyaku/Support/Theme.swift
+      - path: ../Sources/Youyaku/HUD/WaveformView.swift
     dependencies:
       - framework: ../Vendor/build-apple/llama.xcframework
         embed: true

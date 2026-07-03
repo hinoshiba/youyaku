@@ -1,5 +1,5 @@
 #!/bin/zsh
-# iOS 版 Koe をシミュレータ向けにビルドし、任意で起動する。
+# iOS 版 Youyaku をシミュレータ向けにビルドし、任意で起動する。
 # 事前に一度だけ(要管理者パスワード):
 #   sudo xcodebuild -license accept
 #   sudo xcode-select -s /Applications/Xcode.app
@@ -13,15 +13,15 @@ xcodegen generate
 
 echo "==> シミュレータ向けビルド: $DEVICE"
 xcodebuild \
-  -project Koe.xcodeproj \
-  -scheme Koe \
+  -project Youyaku.xcodeproj \
+  -scheme Youyaku \
   -configuration Debug \
   -destination "platform=iOS Simulator,name=$DEVICE" \
   -derivedDataPath build \
   CODE_SIGNING_ALLOWED=NO \
   build | tail -20
 
-APP=$(find build/Build/Products -name "Koe.app" -maxdepth 3 | head -1)
+APP=$(find build/Build/Products -name "Youyaku.app" -maxdepth 3 | head -1)
 echo "==> 完成: $APP"
 
 if [ "$2" = "run" ]; then
@@ -30,5 +30,5 @@ if [ "$2" = "run" ]; then
     open -a Simulator
     sleep 3
     xcrun simctl install booted "$APP"
-    xcrun simctl launch booted com.koe.voiceinput.ios
+    xcrun simctl launch booted com.youyaku.voiceinput.ios
 fi

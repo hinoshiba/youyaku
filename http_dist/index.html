@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Koe（コエ）— 声で、AIに指示を。｜完全ローカルのAI音声入力</title>
-<meta name="description" content="話すだけで、ローカルAIが“AIに伝わる指示文”に整えます。音声認識もLLMもすべてMac / iPhoneの中で完結。クラウド送信ゼロ、完全無料・オープンソース。">
+<title>Youyaku（コエ）— 声で、AIに指示を。｜完全ローカルのAI音声入力</title>
+<meta name="description" content="話すだけで、ローカルAIが“AIに伝わる指示文”に整えます。音声認識もLLMもすべてMac / iPhoneの中で完結。クラウド送信ゼロ、完全無料・完全プライベート。">
 <meta name="theme-color" content="#0a0a0f">
-<link rel="canonical" href="https://koe.app/">
+<link rel="canonical" href="https://youyaku.app/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Koe">
-<meta property="og:title" content="Koe（コエ）— 声で、AIに指示を。">
-<meta property="og:description" content="話すだけで、ローカルAIが“AIに伝わる指示文”に整える。完全オンデバイスでプライベート。無料・オープンソース。">
+<meta property="og:site_name" content="Youyaku">
+<meta property="og:title" content="Youyaku（コエ）— 声で、AIに指示を。">
+<meta property="og:description" content="話すだけで、ローカルAIが“AIに伝わる指示文”に整える。完全オンデバイスでプライベート。無料・完全プライベート。">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:url" content="https://koe.app/">
-<meta property="og:image" content="https://koe.app/assets/mac-home.png">
+<meta property="og:url" content="https://youyaku.app/">
+<meta property="og:image" content="https://youyaku.app/assets/mac-home.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Koe（コエ）— 声で、AIに指示を。">
+<meta name="twitter:title" content="Youyaku（コエ）— 声で、AIに指示を。">
 <meta name="twitter:description" content="話すだけで、ローカルAIが“AIに伝わる指示文”に整える。完全オンデバイス・無料。">
-<meta name="twitter:image" content="https://koe.app/assets/mac-home.png">
+<meta name="twitter:image" content="https://youyaku.app/assets/mac-home.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236D5CFF'/%3E%3Cstop offset='1' stop-color='%23B44DFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cg fill='%23fff'%3E%3Crect x='30' y='42' width='6' height='16' rx='3'/%3E%3Crect x='42' y='34' width='6' height='32' rx='3'/%3E%3Crect x='54' y='26' width='6' height='48' rx='3'/%3E%3Crect x='66' y='38' width='6' height='24' rx='3'/%3E%3C/g%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Koe","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Youyaku","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
 </script>
 <style>
   :root{
@@ -83,6 +83,8 @@
   .btn-ghost{color:var(--text);font-weight:600;font-size:15px;padding:15px 24px;border-radius:13px;border:1px solid var(--border-strong);background:rgba(255,255,255,.03);transition:background .16s;display:inline-flex;align-items:center;gap:8px}
   .btn-ghost:hover{background:rgba(255,255,255,.07)}
   .badge-note{font-size:12.5px;color:var(--dim);margin-top:16px}
+  .soon-chip{display:inline-flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#fff;padding:14px 26px;border-radius:13px;background:var(--grad);box-shadow:0 10px 30px rgba(109,92,255,.4)}
+  .soon-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;opacity:.9}
 
   /* waveform */
   .wave{display:flex;align-items:center;justify-content:center;gap:5px;height:60px;margin:40px 0 4px}
@@ -236,9 +238,9 @@
 
 <nav aria-label="メインナビゲーション">
   <div class="wrap nav-in">
-    <a class="brand" href="#top" aria-label="Koe ホーム">
+    <a class="brand" href="#top" aria-label="Youyaku ホーム">
       <span class="mark"><svg viewBox="0 0 100 100" fill="#fff" aria-hidden="true"><rect x="30" y="42" width="6" height="16" rx="3"/><rect x="42" y="34" width="6" height="32" rx="3"/><rect x="54" y="26" width="6" height="48" rx="3"/><rect x="66" y="38" width="6" height="24" rx="3"/></svg></span>
-      Koe
+      Youyaku
     </a>
     <div class="nav-links">
       <a href="#features">特徴</a>
@@ -254,13 +256,12 @@
 <header class="hero" id="top">
   <span class="blob a"></span><span class="blob b"></span>
   <div class="wrap hero-in">
-    <span class="eyebrow"><span class="dot"></span>完全オンデバイス ・ 無料 ・ オープンソース</span>
+    <span class="eyebrow"><span class="dot"></span>完全オンデバイス ・ 無料 ・ プライバシー重視</span>
     <h1>声で、AIに<span class="grad-text">指示を</span>。</h1>
     <p class="sub">話すだけで、<b>ローカルAI</b>が“AIに伝わる指示文”へ整える。<br>声もテキストも、あなたの端末の外には出ません。</p>
     <p class="op">どのアプリでも <span class="kbd">⌥Space</span>。手を止めず、思考のまま指示できる。</p>
     <div class="cta-row">
-      <a class="btn-primary" href="#download">App Store で入手 <span class="soon">近日公開</span></a>
-      <a class="btn-ghost" href="https://github.com/hinoshiba/voice_input" target="_blank" rel="noopener noreferrer">GitHub でソースを見る</a>
+      <span class="soon-chip">近日、App Store に無料で登場</span>
     </div>
     <p class="badge-note">音声認識も文章整形も、すべて端末の中だけで完結します。</p>
     <div class="wave" aria-hidden="true">
@@ -278,8 +279,8 @@
     </div>
     <div class="hero-shot rv">
       <div class="macwin">
-        <div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="t">Koe</span></div>
-        <img src="assets/mac-home.png" alt="Koe の macOS ダッシュボード。セットアップ状況と使い方が並ぶ" width="1600" height="1056" fetchpriority="high" decoding="async">
+        <div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="t">Youyaku</span></div>
+        <img src="assets/mac-home.png" alt="Youyaku の macOS ダッシュボード。セットアップ状況と使い方が並ぶ" width="1600" height="1056" fetchpriority="high" decoding="async">
       </div>
     </div>
   </div>
@@ -291,7 +292,7 @@
     <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 7.7 8 10 4.6-2.3 8-5 8-10V6z"/></svg>完全オンデバイス処理</div>
     <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 15a4 4 0 0 1 .9-7.9A5.5 5.5 0 0 1 16 7a4.5 4.5 0 0 1 1 8.9"/><path d="m8 16 4-4 4 4M12 12v9" opacity=".35"/><path d="m9 20 6-6" stroke-dasharray="2 3"/></svg>クラウド送信ゼロ</div>
     <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>日本語ファースト</div>
-    <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 19c-4 1.5-4-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.5 11.5 0 0 0-6 0C6.3 2.3 5.3 2.6 5.3 2.6a4.3 4.3 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>オープンソース</div>
+    <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>テレメトリなし</div>
   </div>
 </div>
 
@@ -300,7 +301,7 @@
     <div class="sec-head rv">
       <span class="tag">Features</span>
       <h2 class="h2">打つより速く、<br>“伝わる言葉”に。</h2>
-      <p>AIアシスタントへの指示は、話した方が速い。Koe はそれを「一発で伝わる指示文」に変えて、カーソルの位置へ届けます。</p>
+      <p>AIアシスタントへの指示は、話した方が速い。Youyaku はそれを「一発で伝わる指示文」に変えて、カーソルの位置へ届けます。</p>
     </div>
     <div class="grid">
       <div class="card rv">
@@ -355,7 +356,7 @@
 <section class="versus sec-pad">
   <div class="wrap versus-in rv">
     <h2>ただの書き起こしでは、<br>AIは動いてくれない。</h2>
-    <p>標準の音声入力やクラウド書き起こしは、<span class="hl">話した通り</span>を出すだけ。<br>Koe は、フィラーや言い直しを消し、<span class="hl">AIが一発で理解できる指示文</span>に整える。<br>しかも、声は端末の外に出ません。</p>
+    <p>標準の音声入力やクラウド書き起こしは、<span class="hl">話した通り</span>を出すだけ。<br>Youyaku は、フィラーや言い直しを消し、<span class="hl">AIが一発で理解できる指示文</span>に整える。<br>しかも、声は端末の外に出ません。</p>
     <div class="vs-cols">
       <div class="vs-col bad">
         <h4>ふつうの音声入力</h4>
@@ -365,7 +366,7 @@
       </div>
       <div class="vs-mid">VS</div>
       <div class="vs-col good">
-        <h4>Koe</h4>
+        <h4>Youyaku</h4>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="#38d67a" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>フィラーを除去し、指示文に再構成</li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="#38d67a" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>そのままカーソル位置に貼り付け</li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="#38d67a" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>すべて端末内・クラウド送信ゼロ</li>
@@ -404,7 +405,7 @@
     <div class="showcase rv" style="margin-top:62px">
       <div class="panel">
         <div class="cap"><h3>整った指示文が、その場で。</h3><p>話し言葉から、対象・現象・期待する動作まで構造化。AIに渡してすぐ動く指示になります。</p></div>
-        <div class="media dark"><img src="assets/mac-hud.png" alt="Koe が話し言葉を、対象・現象・期待する動作に構造化した整形結果パネル" width="1000" height="485" loading="lazy" decoding="async"></div>
+        <div class="media dark"><img src="assets/mac-hud.png" alt="Youyaku が話し言葉を、対象・現象・期待する動作に構造化した整形結果パネル" width="1000" height="485" loading="lazy" decoding="async"></div>
       </div>
       <div class="panel">
         <div class="cap"><h3>ツールバーから即操作。</h3><p>モード・モデル・言語・マイク・前提を、メニューバーからワンタップで切り替え。</p></div>
@@ -486,14 +487,14 @@
       <div class="card2 rv">
         <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Mac</h3>
         <p>メニューバー常駐＆グローバルショートカット。どのアプリの上でも呼び出し、カーソル位置へ自動貼り付け。マイクの明示選択にも対応。</p>
-        <img class="macshot" src="assets/mac-models.png" alt="Koe の macOS モデル管理画面。カタログからワンタップでダウンロード" width="1600" height="1056" loading="lazy" decoding="async">
+        <img class="macshot" src="assets/mac-models.png" alt="Youyaku の macOS モデル管理画面。カタログからワンタップでダウンロード" width="1600" height="1056" loading="lazy" decoding="async">
       </div>
       <div class="card2 rv">
         <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>iPhone / iPad</h3>
         <p>アプリを開く→話す→整形→コピー / 共有。音声入力画面から言語もワンタップ切替。すべて端末内で完結します。</p>
         <div class="phones">
-          <div class="phone"><img src="assets/ios-home.png" alt="Koe iOS の音声入力画面。中央に大きなマイクボタン" width="414" height="900" loading="lazy" decoding="async"></div>
-          <div class="phone"><img src="assets/ios-models.png" alt="Koe iOS のモデルカタログ画面" width="414" height="900" loading="lazy" decoding="async"></div>
+          <div class="phone"><img src="assets/ios-home.png" alt="Youyaku iOS の音声入力画面。中央に大きなマイクボタン" width="414" height="900" loading="lazy" decoding="async"></div>
+          <div class="phone"><img src="assets/ios-models.png" alt="Youyaku iOS のモデルカタログ画面" width="414" height="900" loading="lazy" decoding="async"></div>
         </div>
       </div>
     </div>
@@ -504,26 +505,25 @@
   <span class="blob a" style="top:-200px;left:50%;transform:translateX(-50%);right:auto;opacity:.42"></span>
   <div class="wrap" style="position:relative;z-index:1">
     <h2>声で、AIに<span class="grad-text">指示を</span>。</h2>
-    <p>キーボードを打つより速く、思考のスピードで。あなたの Apple デバイスで、今すぐ。</p>
+    <p>キーボードを打つより速く、思考のスピードで。あなたの Apple デバイスへ、まもなく。</p>
     <div class="cta-row">
-      <a class="btn-primary" href="#download">App Store で入手 <span class="soon">近日公開</span></a>
-      <a class="btn-ghost" href="https://github.com/hinoshiba/voice_input" target="_blank" rel="noopener noreferrer">GitHub でソースを見る</a>
+      <span class="soon-chip">近日、App Store に無料で登場</span>
     </div>
-    <p class="badge-note">macOS 14 以降 ／ iOS 17 以降 ・ 完全無料 ・ オープンソース</p>
+    <p class="badge-note">macOS 14 以降 ／ iOS 17 以降 ・ 完全無料</p>
   </div>
 </section>
 </main>
 
 <footer>
   <div class="wrap foot-in">
-    <div class="brand" style="font-size:16px"><span class="mark" style="width:28px;height:28px"><svg viewBox="0 0 100 100" fill="#fff" aria-hidden="true"><rect x="30" y="42" width="6" height="16" rx="3"/><rect x="42" y="34" width="6" height="32" rx="3"/><rect x="54" y="26" width="6" height="48" rx="3"/><rect x="66" y="38" width="6" height="24" rx="3"/></svg></span>Koe</div>
+    <div class="brand" style="font-size:16px"><span class="mark" style="width:28px;height:28px"><svg viewBox="0 0 100 100" fill="#fff" aria-hidden="true"><rect x="30" y="42" width="6" height="16" rx="3"/><rect x="42" y="34" width="6" height="32" rx="3"/><rect x="54" y="26" width="6" height="48" rx="3"/><rect x="66" y="38" width="6" height="24" rx="3"/></svg></span>Youyaku</div>
     <div class="foot-links">
       <a href="#features">特徴</a>
       <a href="#privacy">プライバシー</a>
       <a href="#models">モデル</a>
-      <a href="https://github.com/hinoshiba/voice_input" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="#platforms">対応端末</a>
     </div>
-    <div>© 2026 Koe ・ AIのための音声入力</div>
+    <div>© 2026 Youyaku ・ AIのための音声入力</div>
   </div>
 </footer>
 
