@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
         case recording
         case refining
         case result
+        case empty            // 認識は動いたが結果がゼロ文字(マイク不調ではない)
         case error(String)
     }
 
@@ -113,7 +114,7 @@ final class AppState: ObservableObject {
             Task { await finishRecording() }
         case .refining:
             cancelRefine()
-        case .result, .error:
+        case .result, .empty, .error:
             dismiss()
             startRecording()
         }
@@ -190,7 +191,9 @@ final class AppState: ObservableObject {
         transcript = text
 
         guard !text.isEmpty else {
-            phase = .error(tr("音声を聞き取れませんでした。もう一度お試しください。", "Nothing was heard. Please try again."))
+            // マイクは正常でも、無言・環境音・ごく短い発話だと結果が空になる。
+            // 「設定を見て」ではなく、穏やかに再入力を促す専用状態にする
+            phase = .empty
             return
         }
 
@@ -424,6 +427,9 @@ final class AppState: ObservableObject {
                 } else {
                     accept()
                 }
+            case .empty:
+                dismiss()
+                startRecording()        // ↩ = もう一度話す
             case .error:
                 cancelSession()
             default:

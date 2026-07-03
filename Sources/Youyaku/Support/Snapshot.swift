@@ -49,6 +49,9 @@ enum Snapshot {
         """
         app.phase = .result
         await snap(AnyView(HUDView().environmentObject(app)), size: NSSize(width: 660, height: 320), path: "\(dir)/hud_result.png")
+
+        app.phase = .empty
+        await snap(AnyView(HUDView().environmentObject(app)), size: NSSize(width: 660, height: 320), path: "\(dir)/hud_empty.png")
         app.phase = .idle
 
         let menuView = VStack(spacing: 0) {

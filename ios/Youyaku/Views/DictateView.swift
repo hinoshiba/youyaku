@@ -92,6 +92,8 @@ struct DictateView: View {
             refiningStage
         case .result:
             resultStage
+        case .empty:
+            emptyStage
         case .error(let message):
             errorStage(message)
         }
@@ -228,6 +230,32 @@ struct DictateView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
+        .card()
+    }
+
+    private var emptyStage: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "waveform")
+                .font(.system(size: 30))
+                .foregroundStyle(Brand.primary.opacity(0.9))
+            Text(tr("うまく聞き取れませんでした", "Didn't quite catch that"))
+                .font(.system(size: 15, weight: .semibold))
+            Text(tr("もう少しはっきり、近くで話してみてください。", "Try speaking a bit more clearly, closer to the mic."))
+                .font(.system(size: 12))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Button {
+                app.startRecording()
+            } label: {
+                Label(tr("もう一度話す", "Speak again"), systemImage: "mic.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
         .card()
     }
 

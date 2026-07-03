@@ -10,6 +10,7 @@ final class AppModel: ObservableObject {
         case recording
         case refining
         case result
+        case empty            // 認識は動いたが結果がゼロ文字(マイク不調ではない)
         case error(String)
     }
 
@@ -78,7 +79,7 @@ final class AppModel: ObservableObject {
 
     func toggle() {
         switch phase {
-        case .idle, .result, .error:
+        case .idle, .result, .empty, .error:
             startRecording()
         case .recording:
             Task { await finishRecording() }
@@ -146,7 +147,9 @@ final class AppModel: ObservableObject {
         transcript = text
 
         guard !text.isEmpty else {
-            phase = .error(tr("音声を聞き取れませんでした。もう一度お試しください。", "Nothing was heard. Please try again."))
+            // マイクは正常でも、無言・環境音・ごく短い発話だと結果が空になる。
+            // 「設定を見て」ではなく、穏やかに再入力を促す専用状態にする
+            phase = .empty
             return
         }
 

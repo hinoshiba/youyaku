@@ -84,6 +84,10 @@ struct HUDView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 13))
                 .foregroundStyle(.green)
+        case .empty:
+            Image(systemName: "waveform")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 13))
@@ -98,6 +102,7 @@ struct HUDView: View {
         case .recording: return tr("聞き取り中", "Listening")
         case .refining: return tr("整理しています…", "Refining…")
         case .result: return tr("できました", "Done")
+        case .empty: return tr("もう一度どうぞ", "Let's try again")
         case .error: return tr("エラー", "Error")
         case .idle: return ""
         }
@@ -146,6 +151,20 @@ struct HUDView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.orange)
                 }
+            }
+        case .empty:
+            VStack(spacing: 10) {
+                Spacer()
+                Image(systemName: "waveform")
+                    .font(.system(size: 30))
+                    .foregroundStyle(Brand.primary.opacity(0.9))
+                Text(tr("うまく聞き取れませんでした", "Didn't quite catch that"))
+                    .font(.system(size: 15, weight: .semibold))
+                Text(tr("もう少しはっきり、近くで話してみてください。", "Try speaking a bit more clearly, closer to the mic."))
+                    .font(.system(size: 12))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                Spacer()
             }
         case .error(let message):
             VStack(spacing: 12) {
@@ -211,6 +230,9 @@ struct HUDView: View {
                 if app.settings.value.refineMode != .raw {
                     keyHint("⌘R", tr("整形をやり直す", "Refine Again"))
                 }
+                keyHint("esc", tr("閉じる", "Close"))
+            case .empty:
+                keyHint("↩", tr("もう一度話す", "Speak again"))
                 keyHint("esc", tr("閉じる", "Close"))
             case .error:
                 keyHint("esc", tr("閉じる", "Close"))
