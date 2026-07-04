@@ -16,6 +16,10 @@ Vendor/
 ios/build/
 ios/Youyaku.xcodeproj/
 
+# 配布用 DMG(build.sh --dist が http_dist/download/ に生成。wrangler がローカルから配信するので git には含めない)
+http_dist/download/*.dmg
+http_dist/download/version.txt
+
 # wrangler files
 .wrangler
 .dev.vars*

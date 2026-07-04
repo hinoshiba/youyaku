@@ -109,4 +109,30 @@ else
     echo "      2) export YOUYAKU_NOTARY_PROFILE=youyaku-notary && ./build.sh --dist"
 fi
 
+# ---- 5. HP 直販用に http_dist へ配置 ----
+# 公証 + staple 済みの DMG だけを公開ディレクトリへ置く。未公証の DMG は macOS 15 以降で起動できず、
+# 公開してはいけないため、YOUYAKU_NOTARY_PROFILE 未設定時はここをスキップする。
+# wrangler は http_dist をローカルから配信するので、ここに置けば次の deploy でそのまま配布される。
+# 版が変わってもサイトのリンク(/download/Youyaku.dmg)を固定にするため、安定名でコピーする。
+PUBLISH_DIR="http_dist/download"
+PUBLISH_DMG="$PUBLISH_DIR/${APP_NAME}.dmg"
+if [ -n "$PROFILE" ]; then
+    mkdir -p "$PUBLISH_DIR"
+    cp "$DMG" "$PUBLISH_DMG"
+    printf '%s\n' "$VERSION" > "$PUBLISH_DIR/version.txt"
+    echo "==> HP 配布用に配置: $PUBLISH_DMG (v$VERSION)"
+
+    # Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限。超えると deploy / 配信が失敗する。
+    DMG_BYTES=$(stat -f%z "$PUBLISH_DMG" 2>/dev/null || echo 0)
+    LIMIT=$((25 * 1024 * 1024))
+    if [ "${DMG_BYTES:-0}" -gt "$LIMIT" ]; then
+        echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、Cloudflare の 1 ファイル上限(25 MiB)を超えています。" >&2
+        echo "   このままでは wrangler deploy か配信が失敗します。GitHub Releases 等の外部ホスティングに切り替え、" >&2
+        echo "   index.html のダウンロードリンクをその URL に向けてください。" >&2
+    fi
+else
+    echo "==> http_dist への配置はスキップ(未公証の DMG は配布できません)。"
+    echo "    公開用に配置するには YOUYAKU_NOTARY_PROFILE を設定して公証を通してください。"
+fi
+
 echo "==> DMG: $DMG"

@@ -87,6 +87,9 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary   # 手順3で保存したプロフ
 5. **DMG 生成**（staple 済みアプリ + `/Applications` シンボリックリンク）。
 6. **DMG 署名**（Developer ID + タイムスタンプ）。
 7. **DMG を公証 + staple**、`stapler validate` で検証。
+8. **HP 配布用に配置**：公証済み DMG を `http_dist/download/Youyaku.dmg`（安定名）にコピーし、`http_dist/download/version.txt` にバージョンを書き出す。トップページのダウンロードボタン（`/download/Youyaku.dmg`）がこれを配信する。
+   - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合はこの配置を**スキップ**する（配布不可の DMG を公開しないため）。
+   - `http_dist/download/*.dmg` と `version.txt` は生成物なので **git 管理外**。`wrangler` はローカルの `http_dist` を配信するため、ビルド後に `wrangler deploy` すればそのまま公開される。
 
 ### エンタイトルメント（`Youyaku.entitlements`）
 
@@ -104,6 +107,60 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary   # 手順3で保存したプロフ
 | `YOUYAKU_DIST_IDENTITY` | 使う Developer ID 証明書を明示指定（複数証明書がある場合に必要） | `Developer ID Application: 名前 (TEAMID)` |
 
 ---
+
+## サイト公開（ダウンロードリンク）
+
+macOS 版のダウンロード導線は、トップページ（`http_dist/index.html`）の
+「Mac版をダウンロード」ボタン（`/download/Youyaku.dmg`）。`build.sh --dist` が公証済み DMG を
+`http_dist/download/` に配置し、`wrangler` がそれをそのまま配信する。
+ページ側は `download/version.txt` を読んで配布中のバージョンを表示する。
+
+### deploy 手順
+
+```bash
+export YOUYAKU_NOTARY_PROFILE=youyaku-notary
+./build.sh --dist            # → http_dist/download/Youyaku.dmg / version.txt を生成
+npx wrangler deploy          # http_dist をそのまま配信(DMG も同梱)
+```
+
+- Mac 版はサイト（`/download/Youyaku.dmg`）から直接ダウンロードさせる。
+- iOS は App Store 公開予定のため、サイト上は「近日 App Store へ」表示のまま。
+
+### いまは身内限定公開（Cloudflare Zero Trust / Access）
+
+一般公開の前段階として、サイト全体を **Cloudflare Access（Zero Trust）でゲート** し、
+招待した友人だけがアクセスできる private ページとして配る。認証を通った利用者には
+DMG（`/download/Youyaku.dmg`）もそのまま配信されるので、ダウンロード導線側の追加設定は不要。
+
+設定（Cloudflare ダッシュボード）:
+
+1. **Zero Trust → Access → Applications → Add an application → Self-hosted** を開く。
+2. アプリのドメインをサイトのホスト名（独自ドメイン推奨）に設定。対象パスは全体（`*`）でよい。
+3. **ポリシー**を追加: Action = **Allow**、Include = **Emails**（友人のメールアドレスを列挙）
+   または特定ドメインの Emails。
+4. 保存。以降アクセス時に認証（メールのワンタイム PIN か IdP ログイン）が要求され、
+   許可した人だけが閲覧・ダウンロードできる。
+
+> 一般公開に切り替えるときは、この Access アプリ（またはポリシー）を無効化／削除するだけ。
+> コード側の変更は不要。
+
+### DMG が 25 MiB を超える場合（GitHub ホスティングへ切替）
+
+**Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限**。DMG がこれを超えると
+deploy / 配信が失敗する（`make-dmg.sh` はサイズ超過時に警告を出す）。その場合は DMG のホスティングを
+GitHub へ移す:
+
+1. GitHub の **Releases**（推奨）または **Pages** に DMG をアップロードする（GitHub は 1 ファイル最大 100 MB）。
+2. `http_dist/index.html` のダウンロードリンクを差し替える:
+   - 2 か所の `href="/download/Youyaku.dmg"`（ヒーロー と `#download` セクション）
+   - JSON-LD の `downloadUrl`
+
+   を、その GitHub の URL に向ける。
+3. DMG が Cloudflare を経由しなくなるため、`make-dmg.sh` の `http_dist/download/` への配置ステップは不要になる（残しても無害）。
+
+> 注意: GitHub の公開 Releases / Pages は URL を知っていれば誰でも DL でき、**上記 Access のゲート対象外**になる。
+> 身内限定を厳密に保ちたい段階では、DMG を 25 MiB 以下に収めて Cloudflare 側（Access 配下）に置いたままにするのが安全。
+> どうしても大きい DMG を身内限定にしたい場合は、private リポジトリ + 認証付き配布や、Access for SaaS 等の別手段が必要。
 
 ## 検証（配布前チェック）
 

@@ -20,7 +20,7 @@
 <meta name="twitter:image" content="https://youyaku.app/assets/mac-home.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236D5CFF'/%3E%3Cstop offset='1' stop-color='%23B44DFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cg fill='%23fff'%3E%3Crect x='30' y='42' width='6' height='16' rx='3'/%3E%3Crect x='42' y='34' width='6' height='32' rx='3'/%3E%3Crect x='54' y='26' width='6' height='48' rx='3'/%3E%3Crect x='66' y='38' width='6' height='24' rx='3'/%3E%3C/g%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Youyaku","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Youyaku","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","downloadUrl":"https://youyaku.app/download/Youyaku.dmg","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
 </script>
 <style>
   :root{
@@ -82,6 +82,7 @@
   .btn-primary .soon{font-size:11px;font-weight:700;background:rgba(255,255,255,.22);padding:2px 8px;border-radius:999px}
   .btn-ghost{color:var(--text);font-weight:600;font-size:15px;padding:15px 24px;border-radius:13px;border:1px solid var(--border-strong);background:rgba(255,255,255,.03);transition:background .16s;display:inline-flex;align-items:center;gap:8px}
   .btn-ghost:hover{background:rgba(255,255,255,.07)}
+  .btn-primary svg,.btn-ghost svg{width:19px;height:19px;flex:none}
   .badge-note{font-size:12.5px;color:var(--dim);margin-top:16px}
   .soon-chip{display:inline-flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#fff;padding:14px 26px;border-radius:13px;background:var(--grad);box-shadow:0 10px 30px rgba(109,92,255,.4)}
   .soon-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;opacity:.9}
@@ -228,7 +229,7 @@
   @media(max-width:480px){
     .sec-pad{padding:78px 0}.hero{padding:54px 0 32px}.hero h1{font-size:38px}
     .cta-row{flex-direction:column;align-items:stretch}
-    .btn-primary,.btn-ghost{justify-content:center}
+    .btn-primary,.btn-ghost,.soon-chip{justify-content:center}
     .wrap{padding:0 20px}.card,.model{padding:22px}.plat .card2{padding:24px}
     .trust-in{gap:12px 24px;padding:24px 0}.foot-in{flex-direction:column;text-align:center;gap:18px}
   }
@@ -261,9 +262,14 @@
     <p class="sub">話すだけで、<b>ローカルAI</b>が“AIに伝わる指示文”へ整える。<br>声もテキストも、あなたの端末の外には出ません。</p>
     <p class="op">どのアプリでも <span class="kbd">⌥Space</span>。手を止めず、思考のまま指示できる。</p>
     <div class="cta-row">
-      <span class="soon-chip">近日、App Store に無料で登場</span>
+      <a class="btn-primary" href="/download/Youyaku.dmg" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v11m0 0 4.5-4.5M12 14l-4.5-4.5M5 19h14"/></svg>
+        Mac版をダウンロード
+        <span class="soon">.dmg</span>
+      </a>
+      <span class="soon-chip">iPhone / iPad 版は近日 App Store へ</span>
     </div>
-    <p class="badge-note">音声認識も文章整形も、すべて端末の中だけで完結します。</p>
+    <p class="badge-note">macOS 14 以降 ・ 完全無料 ・ Apple 公証（Notarized）済み<span id="mac-ver"></span></p>
     <div class="wave" aria-hidden="true">
       <span style="--mn:12px;--mx:34px;--dur:1.3s;--op:.55;animation-delay:0s"></span>
       <span style="--mn:16px;--mx:46px;--dur:1.0s;--op:.7;animation-delay:.18s"></span>
@@ -505,11 +511,16 @@
   <span class="blob a" style="top:-200px;left:50%;transform:translateX(-50%);right:auto;opacity:.42"></span>
   <div class="wrap" style="position:relative;z-index:1">
     <h2>声で、AIに<span class="grad-text">指示を</span>。</h2>
-    <p>キーボードを打つより速く、思考のスピードで。あなたの Apple デバイスへ、まもなく。</p>
+    <p>Mac 版は今すぐダウンロード。iPhone / iPad 版は App Store にまもなく登場します。</p>
     <div class="cta-row">
-      <span class="soon-chip">近日、App Store に無料で登場</span>
+      <a class="btn-primary" href="/download/Youyaku.dmg" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v11m0 0 4.5-4.5M12 14l-4.5-4.5M5 19h14"/></svg>
+        Mac版をダウンロード
+        <span class="soon">.dmg</span>
+      </a>
+      <span class="soon-chip">iPhone / iPad 版は近日 App Store へ</span>
     </div>
-    <p class="badge-note">macOS 14 以降 ／ iOS 17 以降 ・ 完全無料</p>
+    <p class="badge-note">macOS 14 以降 ・ 完全無料 ・ Apple 公証（Notarized）済み</p>
   </div>
 </section>
 </main>
@@ -530,6 +541,9 @@
 <script>
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
   document.querySelectorAll('.rv').forEach((el,i)=>{el.style.transitionDelay=(Math.min(i%3,2)*70)+'ms';io.observe(el)});
+
+  // 配布中の Mac 版バージョンを表示(build.sh --dist が download/version.txt を生成)。取得できなければ非表示のまま。
+  fetch('/download/version.txt').then(r=>r.ok?r.text():null).then(t=>{const v=(t||'').trim();const el=document.getElementById('mac-ver');if(v&&el)el.textContent=' ・ v'+v;}).catch(()=>{});
 </script>
 </body>
 </html>
