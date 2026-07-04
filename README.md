@@ -27,11 +27,13 @@ Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命�
 ## ビルド
 
 ```bash
-./build.sh          # 依存取得 → ビルド → dist/Youyaku.app 生成まで自動
+./build.sh          # 依存取得 → ビルド → dist/Youyaku.app 生成まで自動(開発用)
 open dist/Youyaku.app
+
+./build.sh --dist   # 配布用: Developer ID 署名 + 公証 + DMG 生成(要 Apple Developer Program)
 ```
 
-Xcode 不要(Command Line Tools のみでビルド可能)。
+Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は [docs/RELEASE.md](docs/RELEASE.md) を参照。
 
 `build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)を `Vendor/` にダウンロードします。この xcframework は再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
 

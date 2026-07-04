@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Developer ID 直販(App Store 外)＋公証(notarization)用の Hardened Runtime エンタイトルメント。
+	  ※ App Sandbox は付けない: グローバルホットキー(Carbon)・他アプリへの自動貼り付け
+	     (CGEvent 合成 + アクセシビリティ)は Sandbox 下で禁止のため、直販配布が前提。
+	-->
+
+	<!-- マイク入力(AVAudioEngine + SFSpeechRecognizer)。Hardened Runtime 下ではこの権限がないと録音できない -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+
+	<!--
+	  補足: 埋め込みの llama.framework はビルド時に同じ Developer ID で再署名するため、
+	  ライブラリ検証は通る(disable-library-validation は不要)。
+	  万一 Metal/推論の起動時に検証エラーが出る場合のみ、下記を有効化して再公証する:
+	  <key>com.apple.security.cs.disable-library-validation</key><true/>
+	-->
+</dict>
+</plist>
