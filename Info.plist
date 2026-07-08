@@ -4,37 +4,37 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ja</string>
+	<key>CFBundleDisplayName</key>
+	<string>Youyaku</string>
 	<key>CFBundleExecutable</key>
 	<string>Youyaku</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.hinoshiba.youyaku</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Youyaku</string>
-	<key>CFBundleDisplayName</key>
-	<string>Youyaku</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>0.0.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
+	<string>2</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 hinoshiba</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>音声入力のためにマイクを使用します。/ Uses the microphone for voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>話した内容をテキストに変換するために音声認識を使用します。既定ではこの Mac 上で認識され、設定でオフにした場合のみ Apple のサーバー認識を使用します。/ Converts your speech to text. Recognition runs on this Mac by default; Apple's server-based recognition is used only if you turn the on-device setting off.</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 hinoshiba</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 </dict>
 </plist>
