@@ -160,6 +160,10 @@ struct AppSettings: Codable {
     var instantPaste = false     // 整形完了後に確認なしで貼り付け
     var sounds = true
 
+    // 更新チェック(macOS 直販版)。youyaku.hinoshiba.com の version.txt を取得して
+    // 新バージョンを通知する。通信はバージョン文字列の取得のみ(設定でオフ可能)
+    var checkForUpdates = true
+
     var vocabularyList: [String] {
         vocabularyTerms
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -244,6 +248,7 @@ struct AppSettings: Codable {
         keepInClipboard = (try? c.decodeIfPresent(Bool.self, forKey: .keepInClipboard)) ?? d.keepInClipboard
         instantPaste = (try? c.decodeIfPresent(Bool.self, forKey: .instantPaste)) ?? d.instantPaste
         sounds = (try? c.decodeIfPresent(Bool.self, forKey: .sounds)) ?? d.sounds
+        checkForUpdates = (try? c.decodeIfPresent(Bool.self, forKey: .checkForUpdates)) ?? d.checkForUpdates
     }
 }
 
@@ -269,13 +274,28 @@ final class SettingsStore: ObservableObject {
 
     init() {
         try? FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
-        if let data = try? Data(contentsOf: Self.fileURL),
-           let decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
-            value = decoded
+        if let data = try? Data(contentsOf: Self.fileURL) {
+            if let decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
+                value = decoded
+            } else {
+                // 破損したファイルを黙って上書きせず、退避してから初期化する
+                // (ユーザーが前提プリセット等を手動復旧できる余地を残す)
+                Self.quarantineCorruptFile(Self.fileURL)
+                value = AppSettings()
+            }
         } else {
             value = AppSettings()
         }
         L10n.current = value.uiLanguage
+    }
+
+    /// 読み込めなくなった JSON を <name>.corrupt-<日時> に退避する
+    nonisolated static func quarantineCorruptFile(_ url: URL) {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let dest = url.appendingPathExtension("corrupt-\(stamp)")
+        try? FileManager.default.moveItem(at: url, to: dest)
+        NSLog("Youyaku: could not decode \(url.lastPathComponent); moved to \(dest.lastPathComponent)")
     }
 
     private func scheduleSave() {
@@ -289,7 +309,28 @@ final class SettingsStore: ObservableObject {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(value) {
-            try? data.write(to: Self.fileURL, options: .atomic)
+            do {
+                try data.write(to: Self.fileURL, options: Self.writeOptions)
+                Self.restrictPermissions(Self.fileURL)
+            } catch {
+                NSLog("Youyaku: failed to save settings.json: \(error.localizedDescription)")
+            }
         }
+    }
+
+    // 設定・履歴はディクテーション内容など機微になり得る情報を含むため、
+    // iOS はファイル保護クラスを付け、macOS は所有者のみ読み書き可にする
+    nonisolated static var writeOptions: Data.WritingOptions {
+        #if os(iOS)
+        return [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+        #else
+        return [.atomic]
+        #endif
+    }
+
+    nonisolated static func restrictPermissions(_ url: URL) {
+        #if os(macOS)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        #endif
     }
 }

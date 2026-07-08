@@ -15,10 +15,18 @@ Vendor/
 # iOS ビルド成果物 / 生成プロジェクト
 ios/build/
 ios/Youyaku.xcodeproj/
+# App Store 提出用オプション(個人の Team ID を含む。テンプレートは *.example を commit)
+ios/ExportOptions.plist
+# App Store Connect API キー(絶対に commit しない)
+*.p8
 
-# 配布用 DMG(build.sh --dist が http_dist/download/ に生成。wrangler がローカルから配信するので git には含めない)
-http_dist/download/*.dmg
-http_dist/download/version.txt
+# 配布用 DMG / version.txt は git 管理下に置く(手動 commit)。
+#   非公開リポジトリのため GitHub Releases は使わず、公証済み DMG をリポジトリに含めて
+#   GitHub Actions が Cloudflare Workers へサイトごとデプロイする。詳細は docs/RELEASE.md。
+#   → ここでは無視しない(あえて .gitignore に列挙しない)
+
+# npm(package-lock.json はコミット対象なので除外しない)
+node_modules/
 
 # wrangler files
 .wrangler

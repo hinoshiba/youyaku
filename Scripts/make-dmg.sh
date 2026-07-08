@@ -117,19 +117,27 @@ fi
 PUBLISH_DIR="http_dist/download"
 PUBLISH_DMG="$PUBLISH_DIR/${APP_NAME}.dmg"
 if [ -n "$PROFILE" ]; then
+    # Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限。超えると deploy / 配信が失敗する。
+    # 配置してから止めると中途半端な公開物が残るため、配置の前に検査する。
+    DMG_BYTES=$(stat -f%z "$DMG" 2>/dev/null || echo 0)
+    LIMIT=$((25 * 1024 * 1024))
+    if [ "${DMG_BYTES:-0}" -gt "$LIMIT" ]; then
+        if [ "${YOUYAKU_ALLOW_BIG_DMG:-}" = "1" ]; then
+            echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり 25 MiB を超えていますが、YOUYAKU_ALLOW_BIG_DMG=1 のため配置を続行します。" >&2
+        else
+            echo "!! エラー: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、Cloudflare Workers の静的アセット上限(1 ファイル 25 MiB)を超えています。" >&2
+            echo "   http_dist への配置を中止しました(公開中の配布物は変更されていません)。対処:" >&2
+            echo "     - DMG を 25 MiB 以下に抑える、または" >&2
+            echo "     - GitHub Releases 等の外部ホスティングへ移行し、index.html のダウンロードリンクを差し替える(docs/RELEASE.md 参照)" >&2
+            echo "   それでも配置だけ行いたい場合は YOUYAKU_ALLOW_BIG_DMG=1 を設定して再実行してください。" >&2
+            exit 1
+        fi
+    fi
+
     mkdir -p "$PUBLISH_DIR"
     cp "$DMG" "$PUBLISH_DMG"
     printf '%s\n' "$VERSION" > "$PUBLISH_DIR/version.txt"
     echo "==> HP 配布用に配置: $PUBLISH_DMG (v$VERSION)"
-
-    # Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限。超えると deploy / 配信が失敗する。
-    DMG_BYTES=$(stat -f%z "$PUBLISH_DMG" 2>/dev/null || echo 0)
-    LIMIT=$((25 * 1024 * 1024))
-    if [ "${DMG_BYTES:-0}" -gt "$LIMIT" ]; then
-        echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、Cloudflare の 1 ファイル上限(25 MiB)を超えています。" >&2
-        echo "   このままでは wrangler deploy か配信が失敗します。GitHub Releases 等の外部ホスティングに切り替え、" >&2
-        echo "   index.html のダウンロードリンクをその URL に向けてください。" >&2
-    fi
 else
     echo "==> http_dist への配置はスキップ(未公証の DMG は配布できません)。"
     echo "    公開用に配置するには YOUYAKU_NOTARY_PROFILE を設定して公証を通してください。"

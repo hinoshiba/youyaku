@@ -74,7 +74,7 @@ enum Permissions {
     static func resetAccessibilityRegistration() {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-        process.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.youyaku.voiceinput"]
+        process.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.hinoshiba.youyaku"]
         try? process.run()
         process.waitUntilExit()
     }

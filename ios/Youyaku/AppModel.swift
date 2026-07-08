@@ -1,5 +1,6 @@
 import Combine
 import SwiftUI
+import UIKit
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -137,7 +138,7 @@ final class AppModel: ObservableObject {
            "Recognition was interrupted; your dictation so far has been kept. Tap Resume to continue.")
     }
 
-    func finishRecording(autoStopReason: SpeechRecognizer.AutoStopReason? = nil) async {
+    func finishRecording(autoStopReason: SpeechRecognizer.AutoStopReason? = nil, skipRefine: Bool = false) async {
         guard phase == .recording, !isStopping else { return }
         isStopping = true
         defer { isStopping = false }
@@ -161,10 +162,14 @@ final class AppModel: ObservableObject {
 
         let interrupted = autoStopReason == .recognitionFailure
 
-        if settings.value.refineMode == .raw {
+        if settings.value.refineMode == .raw || skipRefine {
             refined = text
             phase = .result
-            if interrupted { statusMessage = resumeHintText }
+            if skipRefine {
+                statusMessage = backgroundCancelText
+            } else if interrupted {
+                statusMessage = resumeHintText
+            }
         } else {
             refine(interrupted: interrupted)
         }
@@ -245,6 +250,46 @@ final class AppModel: ObservableObject {
             statusMessage = tr("整形を中断しました", "Refinement canceled")
             phase = .result
         }
+    }
+
+    // MARK: - ライフサイクル(バックグラウンド遷移)
+
+    /// バックグラウンド遷移時の保全処理。録音中はここまでの文字起こしを確定し、
+    /// 整形中は中断して原文を残す(Metal 推論はバックグラウンドで実行できないため)
+    func enteredBackground() {
+        switch phase {
+        case .recording:
+            // サスペンド前に確定(最大2.5秒)と履歴書き込みを終えられるよう背景実行時間を確保し、
+            // バックグラウンドでは Metal 推論を開始できないため整形はスキップして確定だけ行う
+            let bgTask = UIApplication.shared.beginBackgroundTask(withName: "youyaku.finishRecording")
+            Task {
+                await finishRecording(skipRefine: true)
+                if bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                }
+            }
+        case .refining:
+            cancelRefine()
+            statusMessage = backgroundCancelText
+        default:
+            break
+        }
+    }
+
+    /// メモリ警告時の退避。整形中ならトークン境界で中断してから、ロード済みモデルを解放する
+    /// (unload は生成と同じ直列キューのため、先に中断しないとピーク時に何も解放されない)
+    func handleMemoryWarning() {
+        if phase == .refining {
+            cancelRefine()
+            statusMessage = tr("メモリ不足のため整形を中断しました。原文は保持されています(「やり直す」で再整形できます)",
+                               "Refinement was interrupted to free memory. The original text is kept (tap Retry to refine again).")
+        }
+        LlamaEngine.shared.unload()
+    }
+
+    private var backgroundCancelText: String {
+        tr("バックグラウンドに移ったため整形を中断しました。原文は保持されています(「やり直す」で再整形できます)",
+           "Refinement was canceled because the app went to the background. Your original text is kept — tap Retry to refine again.")
     }
 
     // MARK: - 確定(iOS はコピー)

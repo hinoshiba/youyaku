@@ -4,6 +4,7 @@ struct HistoryView: View {
     @EnvironmentObject var app: AppModel
     @State private var query = ""
     @State private var shareText: String?
+    @State private var showClearConfirm = false   // 「すべて削除」の確認ダイアログ
 
     private var filtered: [HistoryEntry] {
         guard !query.isEmpty else { return app.history.entries }
@@ -34,9 +35,21 @@ struct HistoryView: View {
             .toolbar {
                 if !app.history.entries.isEmpty {
                     Button(role: .destructive) {
-                        app.history.clear()
+                        showClearConfirm = true
                     } label: { Image(systemName: "trash") }
                 }
+            }
+            .confirmationDialog(
+                tr("履歴をすべて削除しますか?", "Delete all history?"),
+                isPresented: $showClearConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(tr("すべて削除", "Delete All"), role: .destructive) {
+                    app.history.clear()
+                }
+                Button(tr("キャンセル", "Cancel"), role: .cancel) {}
+            } message: {
+                Text(tr("この操作は取り消せません。", "This cannot be undone."))
             }
             .sheet(item: Binding(
                 get: { shareText.map { SharePayload(text: $0) } },

@@ -27,6 +27,10 @@ final class LlamaEngine: @unchecked Sendable {
     private var loadedPath: String?
     private var lastUsed = Date.distantPast
 
+    // アプリ終了時に立てる全体フラグ。生成ループはトークンごとにこれも確認するため、
+    // unloadSync() の queue.sync が生成完了まで(数十秒)ブロックすることがない
+    private let terminating = CancelFlag()
+
     private init() {
         // ログを抑制(モデル読み込み失敗などは戻り値で検知する)
         llama_log_set({ _, _, _ in }, nil)
@@ -58,7 +62,7 @@ final class LlamaEngine: @unchecked Sendable {
                         user: user,
                         temperature: temperature,
                         maxTokens: maxTokens,
-                        isCancelled: { cancel.isSet }
+                        isCancelled: { cancel.isSet || self.terminating.isSet }
                     ) { piece in
                         continuation.yield(piece)
                     }
@@ -85,6 +89,8 @@ final class LlamaEngine: @unchecked Sendable {
     // プロセス終了前に必ず呼ぶ。モデルを載せたまま exit すると
     // ggml-metal の残留リソースアサーションでクラッシュする
     func unloadSync() {
+        // 生成中でも次のトークン境界でループを抜けさせる(終了のハング防止)
+        terminating.set()
         queue.sync {
             if let model = self.model {
                 llama_model_free(model)

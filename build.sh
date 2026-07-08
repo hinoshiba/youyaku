@@ -14,14 +14,36 @@ echo "==> ベンダー依存(llama.xcframework)を確認"
 ./Scripts/fetch-vendor.sh
 
 echo "==> Swift ビルド"
-swift build -c release
+if [ "$MODE" = "dist" ]; then
+    # 配布ビルドは universal(arm64 + x86_64)。Intel Mac でも動く DMG を作る。
+    # --arch を複数指定すると成果物は .build/apple/Products/Release/ に置かれる。
+    swift build -c release --arch arm64 --arch x86_64
+    BIN=.build/apple/Products/Release/Youyaku
+else
+    # 開発ビルドはホストのアーキテクチャのみ(速い)
+    swift build -c release
+    BIN=.build/release/Youyaku
+fi
 
 APP=dist/Youyaku.app
 FRAMEWORK_SRC=Vendor/build-apple/llama.xcframework/macos-arm64_x86_64/llama.framework
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
-cp .build/release/Youyaku "$APP/Contents/MacOS/Youyaku"
+cp "$BIN" "$APP/Contents/MacOS/Youyaku"
+
+if [ "$MODE" = "dist" ]; then
+    # universal 検証: 片アーキテクチャだけの成果物を配布しないためのガード
+    ARCHS=$(lipo -archs "$APP/Contents/MacOS/Youyaku")
+    case "$ARCHS" in
+        *arm64*x86_64*|*x86_64*arm64*) echo "==> universal 検証 OK: $ARCHS" ;;
+        *)
+            echo "!! universal ビルドになっていません(含まれるアーキテクチャ: $ARCHS)。" >&2
+            echo "   配布ビルドは arm64 と x86_64 の両方を含む必要があります。" >&2
+            exit 1
+            ;;
+    esac
+fi
 cp Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 

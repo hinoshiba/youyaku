@@ -6,6 +6,9 @@ struct MenuBarView: View {
     var body: some View {
         VStack(spacing: 12) {
             header
+            if let version = app.updateChecker.availableVersion {
+                updateRow(version)
+            }
             recordButton
             modePicker
             selectors
@@ -15,6 +18,32 @@ struct MenuBarView: View {
         }
         .padding(14)
         .frame(width: 340)
+    }
+
+    // 新バージョンの案内(クリックでダウンロードページを開く)
+    private func updateRow(_ version: String) -> some View {
+        Button {
+            NSWorkspace.shared.open(UpdateChecker.downloadPageURL)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundStyle(Brand.primary)
+                Text(tr("新しいバージョン v\(version) があります", "Version \(version) is available"))
+                    .font(.system(size: 11, weight: .medium))
+                Spacer()
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Brand.primary.opacity(0.10))
+            )
+        }
+        .buttonStyle(.plain)
+        .help(tr("ダウンロードページを開く", "Open Download Page"))
     }
 
     private var header: some View {

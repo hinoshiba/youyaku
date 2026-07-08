@@ -28,6 +28,9 @@ final class HUDPanel: NSPanel {
 final class HUDController {
     private weak var appState: AppState?
     private var panel: HUDPanel?
+    // hide() のフェード完了ハンドラ用の世代番号。show() で進めることで、
+    // 「hide 直後の show で表示したパネルを、遅れて届いた orderOut が消す」競合を防ぐ
+    private var hideGeneration = 0
 
     private let size = NSSize(width: 660, height: 320)
 
@@ -36,6 +39,7 @@ final class HUDController {
     }
 
     func show() {
+        hideGeneration &+= 1   // 進行中の hide をキャンセル
         if panel == nil {
             build()
         }
@@ -52,11 +56,18 @@ final class HUDController {
 
     func hide() {
         guard let panel, panel.isVisible else { return }
+        hideGeneration &+= 1
+        let generation = hideGeneration
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.15
             panel.animator().alphaValue = 0
-        }, completionHandler: {
-            panel.orderOut(nil)
+        }, completionHandler: { [weak self] in
+            // 完了ハンドラはメインスレッドで呼ばれる
+            MainActor.assumeIsolated {
+                // フェード中に show() が呼ばれていたら消さない
+                guard self?.hideGeneration == generation else { return }
+                panel.orderOut(nil)
+            }
         })
     }
 

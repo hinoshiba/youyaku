@@ -20,9 +20,13 @@ final class HistoryStore: ObservableObject {
     private static let cap = 300
 
     init() {
-        if let data = try? Data(contentsOf: Self.fileURL),
-           let decoded = try? JSONDecoder().decode([HistoryEntry].self, from: data) {
-            entries = decoded
+        if let data = try? Data(contentsOf: Self.fileURL) {
+            if let decoded = try? JSONDecoder().decode([HistoryEntry].self, from: data) {
+                entries = decoded
+            } else {
+                // 破損した履歴を黙って消さず、退避してから空で開始する
+                SettingsStore.quarantineCorruptFile(Self.fileURL)
+            }
         }
     }
 
@@ -71,7 +75,14 @@ final class HistoryStore: ObservableObject {
     private func save() {
         try? FileManager.default.createDirectory(at: SettingsStore.directory, withIntermediateDirectories: true)
         if let data = try? JSONEncoder().encode(entries) {
-            try? data.write(to: Self.fileURL, options: .atomic)
+            do {
+                // 履歴はディクテーション内容そのもの(機微情報になり得る)。
+                // iOS はファイル保護クラス付き、macOS は所有者のみ読み書き可で保存する
+                try data.write(to: Self.fileURL, options: SettingsStore.writeOptions)
+                SettingsStore.restrictPermissions(Self.fileURL)
+            } catch {
+                NSLog("Youyaku: failed to save history.json: \(error.localizedDescription)")
+            }
         }
     }
 }

@@ -1,14 +1,29 @@
 import SwiftUI
+import UIKit
 
 @main
 struct YouyakuApp: App {
     @StateObject private var app = AppModel.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(app)
                 .tint(Brand.primary)
+                .onChange(of: scenePhase) { _, newPhase in
+                    // バックグラウンドでは録音の確定と整形の中断を行う
+                    // (Metal 推論はバックグラウンドで実行できずクラッシュするため)
+                    if newPhase == .background {
+                        app.enteredBackground()
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.didReceiveMemoryWarningNotification
+                )) { _ in
+                    // メモリ警告時は整形を中断してからロード済みモデルを解放し、強制終了を避ける
+                    app.handleMemoryWarning()
+                }
         }
     }
 }

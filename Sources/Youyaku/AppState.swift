@@ -35,10 +35,15 @@ final class AppState: ObservableObject {
     let llamaEngine = LlamaEngine.shared
     lazy var ollama = OllamaClient(settings: settings)
     lazy var hud = HUDController(appState: self)
+    // 直販版の更新通知(youyaku.hinoshiba.com の version.txt を1日1回取得。設定でオフ可能)
+    lazy var updateChecker = UpdateChecker(isEnabled: { [weak self] in
+        self?.settings.value.checkForUpdates ?? false
+    })
 
     private var refineTask: Task<Void, Never>?
     private var dismissWork: DispatchWorkItem?
     private var isStopping = false
+    private var isStartingRecording = false
     private var sessionHistoryID: UUID?   // このセッションの履歴エントリ(音声入力を先に保存)
     private var sessionLocaleID = "ja-JP" // 録音時の認識言語(整形プロンプトの言語をこれに合わせる)
     private var cancellables: Set<AnyCancellable> = []
@@ -54,6 +59,7 @@ final class AppState: ObservableObject {
             speech.objectWillChange.eraseToAnyPublisher(),
             ollama.objectWillChange.eraseToAnyPublisher(),
             modelStore.objectWillChange.eraseToAnyPublisher(),
+            updateChecker.objectWillChange.eraseToAnyPublisher(),
         ] {
             publisher
                 .receive(on: RunLoop.main)
@@ -100,7 +106,10 @@ final class AppState: ObservableObject {
         if ok {
             settings.value.hotkey = combo
         }
-        hotkeyActive = ok
+        // 失敗時も旧ショートカットは登録されたまま生きているため、
+        // hotkeyActive は「いま有効なショートカットがあるか」を反映させる
+        // (ホーム画面の警告バナーの誤表示を防ぐ。失敗の通知は設定画面側で行う)
+        hotkeyActive = ok || HotkeyManager.shared.current != nil
         return ok
     }
 
@@ -144,7 +153,11 @@ final class AppState: ObservableObject {
     }
 
     private func beginRecording(resumingFrom base: String) {
+        // 権限確認の await 中は phase が変わらないため、フラグで二重進入を防ぐ
+        guard !isStartingRecording else { return }
+        isStartingRecording = true
         Task {
+            defer { isStartingRecording = false }
             let permission = await Permissions.ensureSpeechAndMic()
             guard permission.ok else {
                 phase = .error(permission.message)
@@ -350,7 +363,17 @@ final class AppState: ObservableObject {
         let result = Paster.deliver(refined, paste: s.autoPaste, keepInClipboard: s.keepInClipboard)
 
         switch result {
-        case .pasted, .copiedOnly:
+        case .pasted:
+            playSound("Bottle")
+            dismiss()
+        case .copiedOnly where s.autoPaste:
+            // 自動貼り付けを試みたがコピーのみになった(セキュア入力中・自アプリが最前面)。
+            // 成功と誤認させないよう音を変え、案内を読める長さだけ表示してから閉じる
+            playSound("Pop")
+            statusMessage = result.message
+            dismissAfter(1.5)
+        case .copiedOnly:
+            // 自動貼り付けオフの設定では、コピーのみが期待どおりの動作
             playSound("Bottle")
             dismiss()
         case .needsAccessibility:

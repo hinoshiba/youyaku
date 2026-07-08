@@ -1,0 +1,69 @@
+name: Deploy site
+
+# 配布サイト(http_dist)を Cloudflare Workers へデプロイする。
+#
+# トリガー:
+#   - main への push で http_dist/ 配下(DMG・version.txt を含む)や wrangler 設定が変わったとき
+#   - Actions 画面からの手動実行(workflow_dispatch)
+#
+# 必要な GitHub Secrets(Settings > Secrets and variables > Actions):
+#   - CLOUDFLARE_API_TOKEN … Workers のデプロイ権限を持つ API トークン
+#       (Cloudflare ダッシュボード > My Profile > API Tokens > "Edit Cloudflare Workers" テンプレート等)
+#   - CLOUDFLARE_ACCOUNT_ID … 対象アカウントの Account ID(Workers & Pages の概要に表示)
+#
+# カスタムドメイン(youyaku.hinoshiba.com)は Cloudflare 側で Worker の
+# 「Custom Domains」に追加する(この Actions では設定しない)。詳細は docs/RELEASE.md。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "http_dist/**"
+      - "wrangler.jsonc"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 連絡先プレースホルダの公開ブロック
+        run: |
+          if grep -q 'contact-placeholder' http_dist/privacy.html; then
+            echo "::error::privacy.html の問い合わせ先がプレースホルダのままです。公開前に実アドレスへ差し替えてください。"
+            exit 1
+          fi
+
+      - name: DMG の存在と 25MiB 制限チェック
+        run: |
+          DMG=http_dist/download/Youyaku.dmg
+          if [ -f "$DMG" ]; then
+            SIZE=$(stat -c%s "$DMG")
+            LIMIT=$((25 * 1024 * 1024))
+            echo "DMG: $((SIZE / 1024 / 1024)) MiB"
+            if [ "$SIZE" -gt "$LIMIT" ]; then
+              echo "::error::DMG が $((SIZE / 1024 / 1024)) MiB で Cloudflare Workers の静的アセット上限(1 ファイル 25 MiB)を超えています。GitHub 等の外部ホスティングへの移行を検討してください(docs/RELEASE.md)。"
+              exit 1
+            fi
+          else
+            echo "::warning::http_dist/download/Youyaku.dmg が見つかりません。DMG なしでデプロイします(サイトのダウンロードリンクは 404 になります)。証明書のある Mac で ./build.sh --dist を実行し、生成された DMG を commit してください。"
+          fi
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # package.json と同じバージョンに固定(挙動の再現性のため)
+          wranglerVersion: "4.108.0"
+          command: deploy

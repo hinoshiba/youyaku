@@ -97,4 +97,13 @@ extension KeyCombo {
         ]
         return fKeys.contains(keyCode)
     }
+
+    // システムの基本ショートカット(⌘Q・⌘V・⌘Space 等)か。
+    // 乗っ取ると終了・コピペ・Spotlight 等の全アプリ共通操作を壊すため、登録 UI で拒否する
+    var isSystemReserved: Bool {
+        guard carbonModifiers == UInt32(cmdKey) else { return false }
+        // Q, W, C, V, X, A, Z, S, Space, Tab
+        let reserved: Set<UInt32> = [12, 13, 8, 9, 7, 0, 6, 1, 49, 48]
+        return reserved.contains(keyCode)
+    }
 }

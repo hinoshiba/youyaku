@@ -6,6 +6,7 @@ struct ModelsView: View {
     @State private var customURL = ""
     @State private var startingServer = false
     @State private var copiedBrew = false
+    @State private var consentModel: BuiltinModel?   // ダウンロード前のライセンス同意待ちモデル
 
     var body: some View {
         ScrollView {
@@ -40,6 +41,9 @@ struct ModelsView: View {
             if app.settings.value.engine == .ollama {
                 await app.ollama.refresh()
             }
+        }
+        .sheet(item: $consentModel) { model in
+            licenseConsentSheet(model)
         }
     }
 
@@ -87,7 +91,7 @@ struct ModelsView: View {
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Label(tr("音声も文章もモデルも、すべて Mac の中だけで完結します。外部にデータは送信されません。", "Your voice, text, and models all stay on your Mac. No data is ever sent externally."),
+                Label(tr("音声も文章も、既定設定ではすべて Mac の中だけで処理されます。外部通信はモデルのダウンロードとアップデート確認のみです。", "With default settings, your voice and text are processed entirely on your Mac. The only network access is for model downloads and update checks."),
                       systemImage: "lock.shield")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -146,6 +150,8 @@ struct ModelsView: View {
 
     private func builtinInstalledRow(_ model: LocalModel) -> some View {
         let isActive = app.settings.value.builtinModelFile == model.fileName
+        // Llama 系モデルはインストール済み一覧でも帰属表示を出す(ライセンス上の義務)
+        let attribution = BuiltinCatalog.all.first { $0.fileName == model.fileName }?.attribution
         return HStack(spacing: 12) {
             Button {
                 app.settings.value.builtinModelFile = model.fileName
@@ -162,6 +168,9 @@ struct ModelsView: View {
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                     if isActive {
                         Chip(text: tr("使用中", "In Use"), tint: Brand.primary)
+                    }
+                    if let attribution {
+                        Chip(text: attribution, icon: "checkmark.seal", tint: Brand.primary)
                     }
                 }
                 Text(Format.bytes(model.size))
@@ -204,9 +213,32 @@ struct ModelsView: View {
                     Divider()
                 }
             }
+
+            attributionFooter
         }
         .padding(18)
         .card()
+    }
+
+    // Llama 系モデルの帰属表示。Meta のライセンス上、"Built with Llama" 等の表記が必須
+    @ViewBuilder
+    private var attributionFooter: some View {
+        let attributions = BuiltinCatalog.all.compactMap(\.attribution).reduce(into: [String]()) {
+            if !$0.contains($1) { $0.append($1) }
+        }
+        if !attributions.isEmpty {
+            Divider().padding(.vertical, 4)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(attributions.joined(separator: " · "))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(tr("Llama 系モデルには、Meta のライセンスにより上記の帰属表示が義務付けられています。",
+                        "Meta's license requires the attribution above for Llama-based models."))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private func builtinCatalogRow(_ model: BuiltinModel) -> some View {
@@ -241,6 +273,10 @@ struct ModelsView: View {
                             .font(.system(size: 10))
                     }
                 }
+                // Llama 系はライセンス上、帰属表示が必須
+                if let attribution = model.attribution {
+                    Chip(text: attribution, icon: "checkmark.seal", tint: Brand.primary)
+                }
             }
 
             Spacer()
@@ -253,7 +289,8 @@ struct ModelsView: View {
                 builtinProgressView(fileName: model.fileName, progress: progress)
             } else {
                 Button {
-                    app.modelStore.download(from: model.url, fileName: model.fileName, expectedBytes: model.sizeBytes)
+                    // 即ダウンロードせず、ライセンスへの同意を先に求める
+                    consentModel = model
                 } label: {
                     Label(tr("ダウンロード", "Download"), systemImage: "arrow.down.circle")
                         .font(.system(size: 12))
@@ -261,6 +298,52 @@ struct ModelsView: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    // ダウンロード前のライセンス同意シート
+    private func licenseConsentSheet(_ model: BuiltinModel) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Brand.primary)
+                Text(tr("ライセンスの確認", "License Agreement"))
+                    .font(.system(size: 15, weight: .semibold))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.displayName)
+                    .font(.system(size: 13, weight: .medium))
+                Text(tr("このモデルは \(model.licenseName ?? tr("提供元のライセンス", "the provider's license")) の下で配布されています。ダウンロードには、ライセンスおよび利用ポリシーへの同意が必要です。",
+                        "This model is distributed under \(model.licenseName ?? tr("提供元のライセンス", "the provider's license")). Downloading requires agreeing to its license and acceptable use policy."))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let attribution = model.attribution {
+                    Text(tr("帰属表示: \(attribution)", "Attribution: \(attribution)"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                if let license = model.licenseURL {
+                    Link(tr("ライセンスを表示", "View License"), destination: license)
+                        .font(.system(size: 12))
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button(tr("キャンセル", "Cancel")) {
+                    consentModel = nil
+                }
+                Button(tr("同意してダウンロード", "Agree & Download")) {
+                    app.modelStore.download(from: model.url, fileName: model.fileName, expectedBytes: model.sizeBytes)
+                    consentModel = nil
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
     }
 
     private func builtinProgressView(fileName: String, progress: ModelDownload) -> some View {

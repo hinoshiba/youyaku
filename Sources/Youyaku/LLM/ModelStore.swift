@@ -38,8 +38,19 @@ final class ModelStore: NSObject, ObservableObject {
     private var tasks: [String: URLSessionDownloadTask] = [:]
     private var lastPublished: [String: Double] = [:]
 
+    // デリゲート(nonisolated)と共有するメタ情報。MainActor プロパティを
+    // デリゲートから直接読めないため、ロック越しに受け渡す
+    private let metaLock = NSLock()
+    private nonisolated(unsafe) var expectedSizes: [String: Int64] = [:]
+
     nonisolated static var directory: URL {
         SettingsStore.directory.appendingPathComponent("Models", isDirectory: true)
+    }
+
+    // 中断したダウンロードの再開情報(URLSession の resumeData)を保存する場所。
+    // アプリ再起動後も「もう一度ダウンロード」で途中から再開できる
+    nonisolated static var partialsDirectory: URL {
+        directory.appendingPathComponent(".partials", isDirectory: true)
     }
 
     private lazy var session: URLSession = {
@@ -52,6 +63,10 @@ final class ModelStore: NSObject, ObservableObject {
     override init() {
         super.init()
         try? FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: Self.partialsDirectory, withIntermediateDirectories: true)
+        // モデルは再ダウンロード可能なデータのため、iCloud/デバイスバックアップから除外する
+        // (iOS Data Storage Guidelines。数GBのモデルで無料 iCloud 枠を圧迫しないため)
+        Self.excludeFromBackup(Self.directory)
         refresh()
     }
 
@@ -76,9 +91,23 @@ final class ModelStore: NSObject, ObservableObject {
 
     // MARK: - ダウンロード
 
-    func download(from url: URL, fileName: String, expectedBytes: Int64? = nil) {
-        let fileName = fileName.trimmingCharacters(in: .whitespaces)
-        guard !fileName.isEmpty, tasks[fileName] == nil else { return }
+    /// 保存に使ってよいファイル名だけを通す(パス区切りや相対参照で
+    /// Models/ の外へ書き出されるのを防ぐ)。不正なら nil
+    nonisolated static func sanitizedFileName(_ raw: String) -> String? {
+        let name = (raw.trimmingCharacters(in: .whitespaces) as NSString).lastPathComponent
+        guard !name.isEmpty,
+              !name.hasPrefix("."),
+              !name.contains("/"), !name.contains("\\"), !name.contains("\0")
+        else { return nil }
+        return name
+    }
+
+    func download(from url: URL, fileName rawFileName: String, expectedBytes: Int64? = nil) {
+        guard let fileName = Self.sanitizedFileName(rawFileName) else {
+            lastError = tr("ファイル名に使用できない文字が含まれています", "The file name contains characters that cannot be used")
+            return
+        }
+        guard tasks[fileName] == nil else { return }
         guard fileName.lowercased().hasSuffix(".gguf") else {
             lastError = tr("GGUF ファイル(.gguf)の URL を指定してください", "Please provide a URL to a GGUF (.gguf) file")
             return
@@ -92,24 +121,46 @@ final class ModelStore: NSObject, ObservableObject {
 
         lastError = nil
         downloads[fileName] = ModelDownload(totalBytes: expectedBytes ?? 0, receivedBytes: 0)
+        metaLock.lock()
+        expectedSizes[fileName] = expectedBytes ?? 0
+        metaLock.unlock()
 
-        var request = URLRequest(url: url)
-        request.setValue("Youyaku/1.0 (macOS)", forHTTPHeaderField: "User-Agent")
-        let task = session.downloadTask(with: request)
+        // 前回中断分の再開情報があれば途中から再開する
+        let task: URLSessionDownloadTask
+        if let resumeData = Self.takeResumeData(for: fileName) {
+            task = session.downloadTask(withResumeData: resumeData)
+        } else {
+            var request = URLRequest(url: url)
+            request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+            task = session.downloadTask(with: request)
+        }
         task.taskDescription = fileName
         tasks[fileName] = task
         task.resume()
     }
 
     func cancel(_ fileName: String) {
-        tasks[fileName]?.cancel()
+        // 再開情報を残してキャンセルする(次回のダウンロードは途中から再開される)
+        tasks[fileName]?.cancel { data in
+            guard let data else { return }
+            Task { @MainActor [weak self] in
+                // キャンセル直後に同名の再ダウンロードが始まっていたら、
+                // 古い再開情報で新しいダウンロードを壊さない
+                guard self == nil || self?.tasks[fileName] == nil else { return }
+                Self.storeResumeData(data, for: fileName)
+            }
+        }
         tasks[fileName] = nil
         downloads[fileName] = nil
         lastPublished[fileName] = nil
+        metaLock.lock()
+        expectedSizes[fileName] = nil
+        metaLock.unlock()
     }
 
     func delete(_ model: LocalModel) {
         try? FileManager.default.removeItem(at: model.fileURL)
+        Self.removeResumeData(for: model.fileName)
         refresh()
     }
 
@@ -152,12 +203,56 @@ final class ModelStore: NSObject, ObservableObject {
         downloads[fileName] = nil
         tasks[fileName] = nil
         lastPublished[fileName] = nil
+        metaLock.lock()
+        expectedSizes[fileName] = nil
+        metaLock.unlock()
         if let error {
             if wasTracked { lastError = error }
         } else {
             refresh()
             if wasTracked { onInstalled?(fileName) }
         }
+    }
+
+    // MARK: - ユーティリティ
+
+    private nonisolated static var userAgent: String {
+        let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "1.0"
+        #if os(iOS)
+        return "Youyaku/\(version) (iOS)"
+        #else
+        return "Youyaku/\(version) (macOS)"
+        #endif
+    }
+
+    private nonisolated static func excludeFromBackup(_ url: URL) {
+        var url = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? url.setResourceValues(values)
+    }
+
+    // MARK: - 再開情報(resumeData)の保存
+
+    private nonisolated static func resumeDataURL(for fileName: String) -> URL {
+        partialsDirectory.appendingPathComponent(fileName + ".resume")
+    }
+
+    fileprivate nonisolated static func storeResumeData(_ data: Data, for fileName: String) {
+        try? FileManager.default.createDirectory(at: partialsDirectory, withIntermediateDirectories: true)
+        try? data.write(to: resumeDataURL(for: fileName), options: .atomic)
+        excludeFromBackup(partialsDirectory)
+    }
+
+    private nonisolated static func takeResumeData(for fileName: String) -> Data? {
+        let url = resumeDataURL(for: fileName)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        try? FileManager.default.removeItem(at: url)
+        return data
+    }
+
+    fileprivate nonisolated static func removeResumeData(for fileName: String) {
+        try? FileManager.default.removeItem(at: resumeDataURL(for: fileName))
     }
 }
 
@@ -184,8 +279,20 @@ extension ModelStore: URLSessionDownloadDelegate {
         let status = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
         var errorMessage: String?
 
-        if status != 200 {
-            errorMessage = tr("サーバーがエラーを返しました (HTTP \(status))", "The server returned an error (HTTP \(status))")
+        metaLock.lock()
+        let expected = expectedSizes[fileName] ?? 0
+        metaLock.unlock()
+        let actualSize = (try? FileManager.default.attributesOfItem(atPath: location.path)[.size] as? Int64) ?? nil
+
+        if status != 200, status != 206 {
+            errorMessage = Self.httpErrorMessage(status)
+        } else if expected > 0, let actualSize, actualSize != expected {
+            // カタログ記載サイズとの完全一致を要求する(配布元での差し替え・
+            // 途中破損をここで検出する。カタログは URL をコミット SHA に固定済み)
+            errorMessage = tr(
+                "ダウンロードしたファイルのサイズが想定と一致しません(想定 \(Format.bytes(expected)) / 実際 \(Format.bytes(actualSize)))。配布元でファイルが変更された可能性があります。",
+                "The downloaded file size does not match the expected size (expected \(Format.bytes(expected)), got \(Format.bytes(actualSize))). The file may have changed at the source."
+            )
         } else if !Self.looksLikeGGUF(location) {
             errorMessage = tr("ダウンロードしたファイルが GGUF 形式ではありません(URL を確認してください)", "The downloaded file is not in GGUF format (please check the URL)")
         } else {
@@ -196,6 +303,8 @@ extension ModelStore: URLSessionDownloadDelegate {
                     try FileManager.default.removeItem(at: dest)
                 }
                 try FileManager.default.moveItem(at: location, to: dest)
+                Self.excludeFromBackup(dest)
+                Self.removeResumeData(for: fileName)
             } catch {
                 errorMessage = tr("ファイルの保存に失敗しました: \(error.localizedDescription)", "Failed to save the file: \(error.localizedDescription)")
             }
@@ -210,8 +319,34 @@ extension ModelStore: URLSessionDownloadDelegate {
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error, (error as NSError).code != NSURLErrorCancelled,
               let fileName = task.taskDescription else { return }
+        // 通信断などの失敗時は再開情報を保存し、次回のダウンロードで途中から再開する
+        var suffix = ""
+        if let resumeData = (error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data {
+            Self.storeResumeData(resumeData, for: fileName)
+            suffix = tr(" もう一度ダウンロードすると途中から再開します。", " Download again to resume from where it left off.")
+        }
+        let message = tr("ダウンロードに失敗しました: \(error.localizedDescription)", "Download failed: \(error.localizedDescription)") + suffix
         Task { @MainActor [weak self] in
-            self?.finish(fileName: fileName, error: tr("ダウンロードに失敗しました: \(error.localizedDescription)", "Download failed: \(error.localizedDescription)"))
+            self?.finish(fileName: fileName, error: message)
+        }
+    }
+
+    private nonisolated static func httpErrorMessage(_ status: Int) -> String {
+        switch status {
+        case 401, 403:
+            return tr("配布元がダウンロードを制限しています (HTTP \(status))。モデルの配布条件が変更された可能性があります。アプリの更新や配布元の情報を確認してください。",
+                      "The source has restricted this download (HTTP \(status)). The model's distribution terms may have changed. Check for app updates or the source page.")
+        case 404:
+            return tr("配布元にファイルが見つかりません (HTTP 404)。ファイルが移動または削除された可能性があります。",
+                      "The file was not found at the source (HTTP 404). It may have been moved or deleted.")
+        case 429:
+            return tr("配布元へのアクセスが混み合っています (HTTP 429)。しばらく時間をおいてから再試行してください。",
+                      "The source is rate-limiting downloads (HTTP 429). Please wait a while and try again.")
+        case 500...599:
+            return tr("配布元サーバーでエラーが発生しました (HTTP \(status))。しばらくしてから再試行してください。",
+                      "The source server returned an error (HTTP \(status)). Please try again later.")
+        default:
+            return tr("サーバーがエラーを返しました (HTTP \(status))", "The server returned an error (HTTP \(status))")
         }
     }
 

@@ -13,6 +13,12 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                if let version = app.updateChecker.availableVersion {
+                    updateBanner(version)
+                }
+                if !app.hotkeyActive {
+                    hotkeyBanner
+                }
                 hero
                 setupChecklist
                 quickGuide
@@ -27,6 +33,56 @@ struct HomeView: View {
         .task {
             await app.ollama.refresh()
         }
+    }
+
+    // MARK: - バナー
+
+    // 新バージョンの案内(直販版の更新チェック。設定でオフ可能)
+    private func updateBanner(_ version: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(Brand.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tr("新しいバージョン v\(version) があります", "Version \(version) is available"))
+                    .font(.system(size: 13, weight: .medium))
+                Text(tr("ダウンロードページから最新版を入手できます", "Get the latest version from the download page"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(tr("ダウンロードページを開く", "Open Download Page")) {
+                NSWorkspace.shared.open(UpdateChecker.downloadPageURL)
+            }
+            .controlSize(.small)
+        }
+        .padding(14)
+        .card()
+    }
+
+    // ショートカット登録失敗の警告(他アプリとの競合など)
+    private var hotkeyBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tr("ショートカット \(app.settings.value.hotkey.display) を登録できませんでした",
+                        "Couldn't register the \(app.settings.value.hotkey.display) shortcut"))
+                    .font(.system(size: 13, weight: .medium))
+                Text(tr("他のアプリやシステムと競合している可能性があります。設定で別のキーに変更してください。",
+                        "It may conflict with another app or the system. Please choose a different key in Settings."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(tr("設定を開く", "Open Settings")) {
+                windowManager.tab = .settings
+            }
+            .controlSize(.small)
+        }
+        .padding(14)
+        .card()
     }
 
     // MARK: - ヒーロー
@@ -131,6 +187,19 @@ struct HomeView: View {
                 Permissions.resetAccessibilityRegistration()
                 Permissions.requestAccessibility()
                 Permissions.openAccessibilitySettings()
+            }
+
+            // 登録に成功している間は表示しない(失敗時だけ気付けるようにする)
+            if !app.hotkeyActive {
+                checklistRow(
+                    ok: false,
+                    title: tr("ショートカット", "Shortcut"),
+                    detail: tr("\(app.settings.value.hotkey.display) を登録できませんでした(他アプリと競合)。別のキーに変更してください",
+                               "Couldn't register \(app.settings.value.hotkey.display) (conflicts with another app). Please choose a different key."),
+                    actionLabel: tr("設定を開く", "Open Settings")
+                ) {
+                    windowManager.tab = .settings
+                }
             }
 
             if app.settings.value.engine == .ollama {

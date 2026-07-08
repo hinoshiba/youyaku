@@ -80,6 +80,25 @@ final class SpeechRecognizer: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in self?.handleAudioConfigChange() }
         }
+        #if os(iOS)
+        // 電話・Siri・アラーム等のオーディオ割り込み。中断されたエンジンは
+        // そのままでは復帰しないため、ここまでの文字起こしを保全してセッションを
+        // 正常終了ルートに乗せる(UI が「録音中」のまま固まるのを防ぐ)
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init(rawValue:))
+            guard type == .began else { return }
+            Task { @MainActor [weak self] in
+                guard let self, self.isRunning else { return }
+                self.commitLiveSegment()
+                self.onAutoStop?(.recognitionFailure)
+            }
+        }
+        #endif
     }
 
     struct Config {
@@ -106,9 +125,27 @@ final class SpeechRecognizer: ObservableObject {
         guard !isRunning else { return }
 
         guard let rec = SFSpeechRecognizer(locale: config.locale), rec.isAvailable else {
+            #if os(iOS)
+            throw YouyakuError(tr("音声認識を利用できません。設定 > 一般 > キーボード で音声入力と言語を有効にしてください。", "Speech recognition is unavailable. Enable Dictation and the language in Settings > General > Keyboard."))
+            #else
             throw YouyakuError(tr("音声認識を利用できません。システム設定 > キーボード > 音声入力 で言語を追加してください。", "Speech recognition is unavailable. Add the language in System Settings > Keyboard > Dictation."))
+            #endif
         }
         recognizer = rec
+
+        // プライバシー方針: 「音声を外部に送信しない」という表明と実装を一致させる。
+        // iOS: 常にオンデバイス認識のみ。非対応の言語・端末ではフォールバックせずエラーにする。
+        // macOS: 「オンデバイス認識を優先」ON の場合も、非対応時にサーバー認識へ
+        //        無警告でフォールバックせず、明示的なエラーにする(OFF は利用者の明示選択)。
+        #if os(iOS)
+        guard rec.supportsOnDeviceRecognition else {
+            throw YouyakuError(tr("この言語はオンデバイス音声認識に対応していません。音声を外部に送信しないため、この言語では利用できません。", "This language does not support on-device speech recognition. To keep your voice on this device, it cannot be used."))
+        }
+        #else
+        if config.preferOnDevice && !rec.supportsOnDeviceRecognition {
+            throw YouyakuError(tr("この言語はオンデバイス音声認識に対応していません。設定の「オンデバイス認識を優先」をオフにすると、Apple のサーバー認識で利用できます(音声がネットワークに送信されます)。", "This language does not support on-device recognition. Turn off \"Prefer on-device recognition\" in Settings to use Apple's server-based recognition (audio will be sent over the network)."))
+        }
+        #endif
 
         activeConfig = config
         // 再開時は既存の文字起こしを確定済みテキストとして引き継ぐ
@@ -136,9 +173,10 @@ final class SpeechRecognizer: ObservableObject {
     // マイク入力のタップを張り、オーディオエンジンを開始する
     private func startAudio() throws {
         #if os(iOS)
-        // iOS では録音の前にオーディオセッションを構成する必要がある
+        // iOS では録音の前にオーディオセッションを構成する必要がある。
+        // .allowBluetooth: AirPods 等の Bluetooth ヘッドセットを入力ルートとして許可する
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try session.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetooth])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
         #endif
         #if os(macOS)
@@ -178,7 +216,14 @@ final class SpeechRecognizer: ObservableObject {
         isReconfiguring = true
         defer {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.isReconfiguring = false
+                guard let self else { return }
+                self.isReconfiguring = false
+                // 抑止窓の間に届いた構成変更通知は捨てられている。窓明けに
+                // エンジンが止まったままなら取りこぼしとみなし、もう一度組み直す
+                // (デバイス切替の連続通知で録音が無音のまま固まるのを防ぐ)
+                if self.isRunning, !self.engine.isRunning {
+                    self.handleAudioConfigChange()
+                }
             }
         }
 
@@ -212,9 +257,17 @@ final class SpeechRecognizer: ObservableObject {
         req.shouldReportPartialResults = true
         req.taskHint = .dictation
         req.addsPunctuation = config.punctuation
-        if rec.supportsOnDeviceRecognition && config.preferOnDevice {
+        #if os(iOS)
+        // iOS は常にオンデバイス認識のみ(非対応言語は start() でエラーにしている)。
+        // これにより「音声を外部に送信しない」という表明・プライバシーラベルと実装が一致する
+        req.requiresOnDeviceRecognition = true
+        #else
+        // macOS: 「オンデバイス認識を優先」ON なら強制(非対応言語は start() でエラー)。
+        // OFF は Apple サーバー認識の明示的な選択(設定画面に送信の警告を表示)
+        if config.preferOnDevice {
             req.requiresOnDeviceRecognition = true
         }
+        #endif
         if !config.vocabulary.isEmpty {
             req.contextualStrings = config.vocabulary
         }

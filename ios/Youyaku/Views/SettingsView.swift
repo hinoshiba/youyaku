@@ -78,7 +78,7 @@ struct SettingsView: View {
             Picker(tr("言語", "Language"), selection: $app.config.localeID) {
                 ForEach(AppSettings.speechLocales) { Text($0.label).tag($0.id) }
             }
-            Toggle(tr("オンデバイス認識を優先", "Prefer on-device"), isOn: $app.config.preferOnDevice)
+            // iOS は常時オンデバイス認識のため「優先」トグルは置かない
             Toggle(tr("句読点を自動挿入", "Auto punctuation"), isOn: $app.config.punctuation)
             Toggle(tr("無音で自動停止", "Auto-stop on silence"), isOn: $app.config.autoStop)
             if app.settings.value.autoStop {
@@ -124,10 +124,16 @@ struct SettingsView: View {
                 Text(tr("AIのための音声入力", "Voice input for AI"))
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            Label(tr("音声もモデルもすべて端末内で処理され、外部に送信されません。",
-                     "Audio and models are processed entirely on-device and never sent externally."),
+            Label(tr("音声認識・整形はすべて端末内で処理されます。外部への通信は、モデルのダウンロード時(Hugging Face)のみです。",
+                     "Speech recognition and refinement happen entirely on-device. The only network access is for model downloads (Hugging Face)."),
                   systemImage: "lock.shield")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
+            Link(destination: URL(string: "https://youyaku.hinoshiba.com/privacy.html")!) {
+                Text(tr("プライバシーポリシー", "Privacy Policy"))
+            }
+            Link(destination: URL(string: "https://youyaku.hinoshiba.com/terms.html")!) {
+                Text(tr("利用規約", "Terms of Use"))
+            }
             NavigationLink {
                 LicenseView()
             } label: {

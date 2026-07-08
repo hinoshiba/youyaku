@@ -42,6 +42,9 @@ final class OllamaClient: ObservableObject {
 
     private let settings: SettingsStore
     private var pullTasks: [String: Task<Void, Never>] = [:]
+    // キャンセル直後に同名モデルを再ダウンロードした際、旧タスクの後始末が
+    // 新タスクの進捗・追跡を消してしまわないよう、世代トークンで区別する
+    private var pullGenerations: [String: UUID] = [:]
 
     init(settings: SettingsStore) {
         self.settings = settings
@@ -135,6 +138,8 @@ final class OllamaClient: ObservableObject {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, pullTasks[name] == nil else { return }
         pulls[name] = PullProgress()
+        let generation = UUID()
+        pullGenerations[name] = generation
 
         pullTasks[name] = Task { [weak self] in
             guard let self else { return }
@@ -168,10 +173,16 @@ final class OllamaClient: ObservableObject {
             } catch is CancellationError {
                 // ユーザーによるキャンセル
             } catch {
-                self.lastError = tr("\(name) のダウンロードに失敗: \(error.localizedDescription)", "Failed to download \(name): \(error.localizedDescription)")
+                if self.pullGenerations[name] == generation {
+                    self.lastError = tr("\(name) のダウンロードに失敗: \(error.localizedDescription)", "Failed to download \(name): \(error.localizedDescription)")
+                }
             }
-            self.pulls[name] = nil
-            self.pullTasks[name] = nil
+            // 自分の世代のときだけ後始末する(再ダウンロード済みなら触らない)
+            if self.pullGenerations[name] == generation {
+                self.pulls[name] = nil
+                self.pullTasks[name] = nil
+                self.pullGenerations[name] = nil
+            }
         }
     }
 
@@ -179,6 +190,7 @@ final class OllamaClient: ObservableObject {
         pullTasks[name]?.cancel()
         pullTasks[name] = nil
         pulls[name] = nil
+        pullGenerations[name] = nil
     }
 
     func delete(_ name: String) async {

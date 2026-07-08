@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -27,7 +27,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>音声入力のためにマイクを使用します。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>話した内容をテキストに変換するために音声認識を使用します。認識はデバイス上で行われます。</string>
+	<string>話した内容をテキストに変換するために音声認識を使用します。認識はすべてこの端末上で行われ、音声が外部に送信されることはありません。/ Converts your speech to text. All recognition happens on this device; audio never leaves it.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

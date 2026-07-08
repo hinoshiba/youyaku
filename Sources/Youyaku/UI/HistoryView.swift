@@ -5,6 +5,7 @@ struct HistoryView: View {
     @State private var query = ""
     @State private var copiedID: UUID?
     @State private var expandedIDs: Set<UUID> = []
+    @State private var confirmClearAll = false
 
     // 表示が切り詰められる可能性があるか(行数指定の lineLimit に合わせ、
     // 文字量と改行数の両方で判定する)
@@ -41,10 +42,22 @@ struct HistoryView: View {
 
                 if !app.history.entries.isEmpty {
                     Button(role: .destructive) {
-                        app.history.clear()
+                        confirmClearAll = true
                     } label: {
                         Label(tr("すべて削除", "Delete All"), systemImage: "trash")
                             .font(.system(size: 12))
+                    }
+                    .confirmationDialog(
+                        tr("すべての履歴を削除しますか?", "Delete all history?"),
+                        isPresented: $confirmClearAll
+                    ) {
+                        Button(tr("すべて削除", "Delete All"), role: .destructive) {
+                            app.history.clear()
+                        }
+                        Button(tr("キャンセル", "Cancel"), role: .cancel) {}
+                    } message: {
+                        Text(tr("\(app.history.entries.count) 件の履歴が削除されます。この操作は取り消せません。",
+                                "This will delete \(app.history.entries.count) entries. This cannot be undone."))
                     }
                 }
             }

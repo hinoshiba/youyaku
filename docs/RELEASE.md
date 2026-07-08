@@ -49,6 +49,16 @@ xcrun notarytool store-credentials youyaku-notary \
 
 ## ビルド
 
+### 0. バージョンを上げる（リリースごとに最初に行う）
+
+```bash
+./Scripts/bump-version.sh 1.1.0   # 例: 1.1.0 に上げる
+```
+
+- ルート `Info.plist` の `CFBundleShortVersionString` を書き換え、`CFBundleVersion` を +1 する。
+- `ios/project.yml` の `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` も同じ値に同期する（macOS / iOS で版数がズレるのを防ぐ）。
+- DMG のファイル名やサイトの `version.txt`、アプリ内の更新チェックはこの値を参照するため、**ビルド前に必ず実行**する。
+
 ### 開発ビルド（手元での動作確認用）
 
 ```bash
@@ -67,6 +77,11 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary   # 手順3で保存したプロフ
 
 成果物: `dist/Youyaku-<バージョン>.dmg`（公証・staple 済み）。
 
+配布ビルドは **universal（arm64 + x86_64）** でビルドされる（`swift build -c release --arch arm64 --arch x86_64`）。
+Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build.sh` は `lipo -archs` で
+両アーキテクチャが含まれることを検証し、片方しか無ければエラーで停止する。
+（開発ビルド `./build.sh` はホストのアーキテクチャのみで高速にビルドする。）
+
 > `YOUYAKU_NOTARY_PROFILE` を設定せずに `--dist` を実行すると、署名と DMG 生成までは行い、**公証はスキップ**される
 > （手元テスト用。この DMG は配布しないこと）。
 
@@ -76,7 +91,8 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary   # 手順3で保存したプロフ
 
 `build.sh --dist` → `Scripts/make-dmg.sh` の流れ:
 
-1. **Swift ビルド**（`swift build -c release`）してアプリバンドルを組み立て、`llama.framework` を埋め込む。
+1. **Swift ビルド**（universal: `swift build -c release --arch arm64 --arch x86_64`）してアプリバンドルを組み立て、
+   `lipo -archs` で両アーキテクチャを検証し、`llama.framework` を埋め込む。
 2. **inside-out 署名**（埋め込みフレームワーク → アプリ本体の順）。いずれも:
    - `--options runtime`（Hardened Runtime。公証の必須要件）
    - `--timestamp`（セキュアタイムスタンプ。公証の必須要件・証明書失効後も検証可）
@@ -110,21 +126,48 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary   # 手順3で保存したプロフ
 
 ## サイト公開（ダウンロードリンク）
 
-macOS 版のダウンロード導線は、トップページ（`http_dist/index.html`）の
-「Mac版をダウンロード」ボタン（`/download/Youyaku.dmg`）。`build.sh --dist` が公証済み DMG を
-`http_dist/download/` に配置し、`wrangler` がそれをそのまま配信する。
+サイトは **`youyaku.hinoshiba.com`**（Cloudflare Workers）で配信する。macOS 版のダウンロード導線は
+トップページ（`http_dist/index.html`）の「Mac版をダウンロード」ボタン（`/download/Youyaku.dmg`）。
 ページ側は `download/version.txt` を読んで配布中のバージョンを表示する。
 
-### deploy 手順
+deploy は **GitHub Actions**（`.github/workflows/deploy-site.yml`）で自動化している。
+`main` への push で `http_dist/` 配下（DMG・version.txt を含む）が変わると、`http_dist` を
+Cloudflare Workers へデプロイする。
+
+### 初回セットアップ（一度だけ）
+
+1. **GitHub Secrets** を登録（リポジトリ Settings → Secrets and variables → Actions）:
+   - `CLOUDFLARE_API_TOKEN` … Workers のデプロイ権限を持つ API トークン
+     （Cloudflare ダッシュボード → My Profile → API Tokens → "Edit Cloudflare Workers" テンプレート）
+   - `CLOUDFLARE_ACCOUNT_ID` … 対象アカウントの Account ID（Workers & Pages 概要に表示）
+2. **カスタムドメイン**: Cloudflare の Worker 設定 → **Custom Domains** に `youyaku.hinoshiba.com` を追加する
+   （プロキシ DNS レコードは自動作成される）。この Actions 側ではドメインを設定しない。
+
+### リリースごとの手順
 
 ```bash
+# 証明書のある Mac で:
 export YOUYAKU_NOTARY_PROFILE=youyaku-notary
-./build.sh --dist            # → http_dist/download/Youyaku.dmg / version.txt を生成
-npx wrangler deploy          # http_dist をそのまま配信(DMG も同梱)
+./Scripts/bump-version.sh X.Y.Z   # バージョンを上げる(前述)
+./build.sh --dist                 # → http_dist/download/Youyaku.dmg / version.txt を生成(公証込み)
+
+# 生成物を commit して push すると Actions が自動デプロイする
+git add http_dist/download/Youyaku.dmg http_dist/download/version.txt Info.plist ios/project.yml
+git commit -m "リリース vX.Y.Z"
+git push
 ```
 
+> **DMG は git 管理下**（本リポジトリは非公開のため GitHub Releases は使わない）。公証済み DMG を
+> commit することで、Actions のチェックアウトに含まれ、そのまま Cloudflare へデプロイされる。
+> `.gitignore` からは除外済み。同じファイル名で上書き commit すれば最新ツリーは 1 つに保たれる。
+
+### 手元から直接 deploy する場合（任意）
+
+Actions を通さず手元から公開したいときは **`Scripts/deploy-site.sh`** を使う（`wrangler deploy` を
+直接叩かない）。DMG 消失ガード・25 MiB 制限チェック・連絡先プレースホルダガードを通してから deploy する。
+
 - Mac 版はサイト（`/download/Youyaku.dmg`）から直接ダウンロードさせる。
-- iOS は App Store 公開予定のため、サイト上は「近日 App Store へ」表示のまま。
+- iOS は App Store 公開。手順は **[docs/RELEASE-iOS.md](RELEASE-iOS.md)** を参照。
 
 ### いまは身内限定公開（Cloudflare Zero Trust / Access）
 
@@ -144,23 +187,67 @@ DMG（`/download/Youyaku.dmg`）もそのまま配信されるので、ダウン
 > 一般公開に切り替えるときは、この Access アプリ（またはポリシー）を無効化／削除するだけ。
 > コード側の変更は不要。
 
-### DMG が 25 MiB を超える場合（GitHub ホスティングへ切替）
+### DMG が 25 MiB を超える場合
 
 **Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限**。DMG がこれを超えると
-deploy / 配信が失敗する（`make-dmg.sh` はサイズ超過時に警告を出す）。その場合は DMG のホスティングを
-GitHub へ移す:
+deploy / 配信が失敗する（`make-dmg.sh`・`deploy-site.sh`・GitHub Actions のいずれもサイズ超過時に
+停止する。`make-dmg.sh` 側は `YOUYAKU_ALLOW_BIG_DMG=1` で明示的に無視できる）。
 
-1. GitHub の **Releases**（推奨）または **Pages** に DMG をアップロードする（GitHub は 1 ファイル最大 100 MB）。
-2. `http_dist/index.html` のダウンロードリンクを差し替える:
-   - 2 か所の `href="/download/Youyaku.dmg"`（ヒーロー と `#download` セクション）
-   - JSON-LD の `downloadUrl`
+現状の内蔵構成（llama.framework の macOS スライスは約 12 MiB）では DMG は 25 MiB に収まる見込みだが、
+将来超えた場合は次のいずれかで対処する:
 
-   を、その GitHub の URL に向ける。
-3. DMG が Cloudflare を経由しなくなるため、`make-dmg.sh` の `http_dist/download/` への配置ステップは不要になる（残しても無害）。
+- **DMG を 25 MiB 以下に抑える**（不要なアーキテクチャ・デバッグシンボルの除去など）。
+- **外部ホスティングへ移す**: 本リポジトリは非公開のため GitHub の**公開** Releases は使えない
+  （公開リポジトリでないと匿名 DL リンクにならない）。R2（Cloudflare のオブジェクトストレージ、
+  公開バケット）や、別途用意した公開ストレージへ DMG を置き、`http_dist/index.html` の
+  ダウンロードリンク 2 か所（ヒーロー・`#download`）と JSON-LD の `downloadUrl` をその URL に向ける。
+  この場合 DMG は git 管理から外してよい。
 
-> 注意: GitHub の公開 Releases / Pages は URL を知っていれば誰でも DL でき、**上記 Access のゲート対象外**になる。
-> 身内限定を厳密に保ちたい段階では、DMG を 25 MiB 以下に収めて Cloudflare 側（Access 配下）に置いたままにするのが安全。
-> どうしても大きい DMG を身内限定にしたい場合は、private リポジトリ + 認証付き配布や、Access for SaaS 等の別手段が必要。
+## llama.cpp（Vendor）の更新手順
+
+`Scripts/fetch-vendor.sh` は取得する `llama.xcframework` を **リリースタグ + SHA-256 でピン留め**している
+（GitHub のリリース資産は権限者が後から差し替え可能なため、タグ固定だけでは真正性を担保できない）。
+llama.cpp を上げるときは、次の **3 点セット**を必ず揃えて更新する:
+
+1. **URL（タグ）**: `LLAMA_VERSION` を新しいリリースタグに変更する。
+2. **SHA-256**: 新しい資産を手元にダウンロードして `shasum -a 256 <zip>` で実測し、`LLAMA_SHA256` を差し替える。
+3. **`.llama-version`**: 展開後に `Vendor/build-apple/.llama-version` へ自動で書き込まれる。
+   スクリプトは「ヘッダが存在し、かつ `.llama-version` が `LLAMA_VERSION` と一致」を取得済みと判定するため、
+   タグを上げれば次回のビルドで自動的に再取得される（手動での削除は不要）。
+
+あわせて `Sources/Youyaku/LLM/LlamaEngine.swift` が使う API との整合を確認すること。
+
+---
+
+## iOS App Store 提出チェックリスト
+
+> **iOS の詳しいビルド・提出手順は [docs/RELEASE-iOS.md](RELEASE-iOS.md) を参照。** 以下は提出前の最終チェックリスト。
+
+App Store Connect へ提出する前に確認する:
+
+- [ ] **バージョン**: `Scripts/bump-version.sh` で macOS 側と同期済みか（`ios/project.yml` の `MARKETING_VERSION`）。
+- [ ] **アプリアイコン**: 1024x1024 のマーケティングアイコンを含む全サイズが揃っているか。
+- [ ] **スクリーンショット**: **iPhone と iPad の両方**（`TARGETED_DEVICE_FAMILY: "1,2"` のため iPad 分も必須）。
+- [ ] **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`
+- [ ] **サポート URL**: `https://youyaku.hinoshiba.com/privacy.html#contact`（サイトの問い合わせセクション）。
+      **提出前に privacy.html の問い合わせ先プレースホルダを実アドレスへ差し替えること**（`Scripts/deploy-site.sh` が未設定のままの deploy をブロックする）。
+- [ ] **App Privacy（プライバシー詳細）**: 「**データ収集なし**」で申告する
+      （音声認識・要約ともデバイス上で完結し、外部へデータを送信しないため）。
+- [ ] **年齢レーティング**: 新しい questionnaire（2025 年改定版）に回答する（Youyaku は該当コンテンツなしの想定）。
+- [ ] **EU DSA トレーダーステータス**: EU デジタルサービス法に基づくトレーダー申告
+      （個人開発者なら non-trader / trader を選択し、trader の場合は連絡先住所等の公開が必要）。
+- [ ] **輸出コンプライアンス**: `ITSAppUsesNonExemptEncryption` は `false` 設定済み
+      （HTTPS 等の OS 標準暗号のみ使用。独自暗号なし）。提出時の質問にも同様に回答する。
+- [ ] **Review Notes（審査メモ）文例**:
+      > 本アプリがダウンロードする GGUF ファイルは実行コードではなく **モデル重みデータ**であり、
+      > 推論はアプリにバンドルされた llama.cpp で行います。モデルのダウンロードによって
+      > アプリの機能・挙動は変化しません（ガイドライン 2.5.2 の実行コード DL には該当しません）。
+      >
+      > 試し方: 設定からモデル「Qwen3 0.6B」をダウンロードすると最速で要約機能を確認できます。
+- [ ] **サイトの Access 制限解除**: 審査前に `https://youyaku.hinoshiba.com` の **Cloudflare Zero Trust（Access）制限を解除**する
+      （プライバシーポリシー URL・サポート URL に審査担当者がアクセスできないとリジェクトされる）。
+
+---
 
 ## 検証（配布前チェック）
 

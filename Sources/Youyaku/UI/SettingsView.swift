@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginItemError: String?
     @State private var showLicenses = false
+    @State private var hotkeyRejection: String?   // レコーダーが拒否した組み合わせの理由表示
 
     var body: some View {
         ScrollView {
@@ -60,11 +61,15 @@ struct SettingsView: View {
 
             settingRow(tr("音声入力の開始 / 停止", "Start / Stop Dictation"), help: tr("枠をクリックして好きなキーを入力(修飾キー、またはF1〜F20)", "Click the field, then press a key (modifier combo, or F1–F20)")) {
                 HStack(spacing: 8) {
-                    HotkeyRecorderView(combo: app.settings.value.hotkey) { newCombo in
+                    HotkeyRecorderView(combo: app.settings.value.hotkey, onChange: { newCombo in
+                        hotkeyRejection = nil
                         app.updateHotkey(newCombo)
-                    }
+                    }, onReject: { reason in
+                        hotkeyRejection = reason
+                    })
                     if app.settings.value.hotkey != .default {
                         Button {
+                            hotkeyRejection = nil
                             app.updateHotkey(.default)
                         } label: {
                             Image(systemName: "arrow.uturn.backward")
@@ -84,6 +89,13 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let hotkeyRejection {
+                Label(hotkeyRejection, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 8) {
                 Text(tr("候補:", "Suggestions:"))
                     .font(.system(size: 11))
@@ -91,6 +103,7 @@ struct SettingsView: View {
                 ForEach(Self.presets, id: \.display) { preset in
                     let isCurrent = app.settings.value.hotkey == preset
                     Button {
+                        hotkeyRejection = nil
                         app.updateHotkey(preset)
                     } label: {
                         Text(preset.display)
@@ -178,7 +191,7 @@ struct SettingsView: View {
 
     private var speechSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader(tr("音声認識", "Speech Recognition"), tr("認識は macOS 内蔵エンジンでデバイス上で行われます", "Recognition runs on-device with the built-in macOS engine"))
+            sectionHeader(tr("音声認識", "Speech Recognition"), tr("macOS 内蔵エンジンを使用します。既定ではこの Mac 上で認識されます", "Uses the built-in macOS engine. By default, recognition runs on this Mac."))
 
             settingRow(tr("言語", "Language")) {
                 Picker("", selection: $app.config.localeID) {
@@ -192,10 +205,18 @@ struct SettingsView: View {
                 MicrophonePicker()
             }
 
-            settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("ネットワークに音声を送らず、Mac 内で処理します", "Processes audio on your Mac without sending it over the network")) {
+            settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("既定(ON)ではネットワークに音声を送らず、この Mac 上だけで処理します。オンデバイス非対応の言語ではエラーになります", "By default (on), audio never leaves this Mac. Languages without on-device support will show an error.")) {
                 Toggle("", isOn: $app.config.preferOnDevice)
                     .toggleStyle(.switch)
                     .labelsHidden()
+            }
+            if !app.settings.value.preferOnDevice {
+                Label(tr("オフにすると、音声認識に Apple のサーバーが使用され、音声がネットワークに送信されます。",
+                         "When this is off, Apple's server-based recognition is used and your audio is sent over the network."),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             settingRow(tr("句読点を自動挿入", "Auto-Insert Punctuation")) {
@@ -321,6 +342,14 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
 
+            settingRow(tr("アップデートを自動確認", "Check for Updates Automatically"),
+                       help: tr("1日1回、youyaku.hinoshiba.com から最新バージョン番号のみを取得します。それ以外の情報は送信しません。",
+                                "Fetches only the latest version number from youyaku.hinoshiba.com once a day. No other information is sent.")) {
+                Toggle("", isOn: $app.config.checkForUpdates)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+
             settingRow(tr("Ollama ホスト", "Ollama Host"), help: tr("通常は変更不要です", "Usually doesn't need to be changed")) {
                 TextField("", text: $app.config.ollamaHost)
                     .textFieldStyle(.roundedBorder)
@@ -330,8 +359,23 @@ struct SettingsView: View {
                         Task { await app.ollama.refresh() }
                     }
             }
+            Label(tr("外部ホストを指定すると、整形対象のテキストがそのホストへ送信されます(http の場合は暗号化されません)。",
+                     "If you point this to an external host, the text being refined is sent to that host (unencrypted over http)."),
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
 
             Divider().padding(.vertical, 6)
+
+            settingRow(tr("プライバシーポリシー・利用規約", "Privacy Policy & Terms"),
+                       help: tr("収集しない情報・外部通信の内容・利用条件の説明", "What we don't collect, what network access occurs, and the terms of use")) {
+                HStack(spacing: 12) {
+                    Link(tr("プライバシー", "Privacy"), destination: URL(string: "https://youyaku.hinoshiba.com/privacy.html")!)
+                    Link(tr("利用規約", "Terms"), destination: URL(string: "https://youyaku.hinoshiba.com/terms.html")!)
+                }
+                .font(.system(size: 12))
+            }
 
             settingRow(tr("オープンソースライセンス", "Open-Source Licenses"),
                        help: tr("本アプリが利用する第三者ソフトウェア・モデルの表示", "Third-party software and models used by this app")) {
@@ -595,6 +639,7 @@ struct PremiseEditorView: View {
 struct HotkeyRecorderView: View {
     var combo: KeyCombo
     var onChange: (KeyCombo) -> Void
+    var onReject: ((String) -> Void)? = nil   // 拒否した組み合わせの理由通知(表示は呼び出し側)
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -630,6 +675,13 @@ struct HotkeyRecorderView: View {
                 return nil
             }
             if let newCombo = KeyCombo.from(event: event) {
+                // ⌘Q・⌘V などのシステム基本ショートカットは登録させない
+                if newCombo.isSystemReserved {
+                    onReject?(tr("\(newCombo.display) はシステムの基本ショートカットのため使用できません。別の組み合わせをお試しください。",
+                                 "\(newCombo.display) is a basic system shortcut and can't be used. Please try a different combination."))
+                    stopRecording()
+                    return nil
+                }
                 onChange(newCombo)
                 stopRecording()
                 return nil
