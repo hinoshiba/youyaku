@@ -67,6 +67,13 @@ final class HistoryStore: ObservableObject {
         save()
     }
 
+    /// 複数エントリをまとめて削除する(複数選択削除で使用)
+    func delete(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        entries.removeAll { ids.contains($0.id) }
+        save()
+    }
+
     func clear() {
         entries.removeAll()
         save()
