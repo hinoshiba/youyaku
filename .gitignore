@@ -22,15 +22,9 @@ ios/ExportOptions.plist
 
 # 配布用 DMG / version.txt は git 管理下に置く(手動 commit)。
 #   非公開リポジトリのため GitHub Releases は使わず、公証済み DMG をリポジトリに含めて
-#   GitHub Actions が Cloudflare Workers へサイトごとデプロイする。詳細は docs/RELEASE.md。
+#   GitHub Actions が GitHub Pages へサイトごとデプロイする。詳細は docs/RELEASE.md。
 #   → ここでは無視しない(あえて .gitignore に列挙しない)
 
-# npm(package-lock.json はコミット対象なので除外しない)
-node_modules/
-
-# wrangler files
-.wrangler
-.dev.vars*
-!.dev.vars.example
+# ローカル環境変数
 .env*
 !.env.example

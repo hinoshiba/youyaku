@@ -112,23 +112,23 @@ fi
 # ---- 5. HP 直販用に http_dist へ配置 ----
 # 公証 + staple 済みの DMG だけを公開ディレクトリへ置く。未公証の DMG は macOS 15 以降で起動できず、
 # 公開してはいけないため、YOUYAKU_NOTARY_PROFILE 未設定時はここをスキップする。
-# wrangler は http_dist をローカルから配信するので、ここに置けば次の deploy でそのまま配布される。
+# ここに置いて commit → push すると GitHub Actions が GitHub Pages へ公開する(docs/RELEASE.md)。
 # 版が変わってもサイトのリンク(/download/Youyaku.dmg)を固定にするため、安定名でコピーする。
 PUBLISH_DIR="http_dist/download"
 PUBLISH_DMG="$PUBLISH_DIR/${APP_NAME}.dmg"
 if [ -n "$PROFILE" ]; then
-    # Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限。超えると deploy / 配信が失敗する。
-    # 配置してから止めると中途半端な公開物が残るため、配置の前に検査する。
+    # GitHub Pages は 1 ファイル 100 MB がソフト上限。超えると公開できないため、配置前に検査する
+    # (配置してから止めると中途半端な公開物が残るため)。
     DMG_BYTES=$(stat -f%z "$DMG" 2>/dev/null || echo 0)
-    LIMIT=$((25 * 1024 * 1024))
+    LIMIT=$((100 * 1024 * 1024))
     if [ "${DMG_BYTES:-0}" -gt "$LIMIT" ]; then
         if [ "${YOUYAKU_ALLOW_BIG_DMG:-}" = "1" ]; then
-            echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり 25 MiB を超えていますが、YOUYAKU_ALLOW_BIG_DMG=1 のため配置を続行します。" >&2
+            echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり 100 MB を超えていますが、YOUYAKU_ALLOW_BIG_DMG=1 のため配置を続行します。" >&2
         else
-            echo "!! エラー: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、Cloudflare Workers の静的アセット上限(1 ファイル 25 MiB)を超えています。" >&2
+            echo "!! エラー: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、GitHub Pages の 1 ファイル上限(100 MB)を超えています。" >&2
             echo "   http_dist への配置を中止しました(公開中の配布物は変更されていません)。対処:" >&2
-            echo "     - DMG を 25 MiB 以下に抑える、または" >&2
-            echo "     - GitHub Releases 等の外部ホスティングへ移行し、index.html のダウンロードリンクを差し替える(docs/RELEASE.md 参照)" >&2
+            echo "     - DMG を小さくする(不要なアーキテクチャ・デバッグシンボルの除去など)、または" >&2
+            echo "     - 外部の公開ストレージへ移行し、index.html のダウンロードリンクを差し替える(docs/RELEASE.md 参照)" >&2
             echo "   それでも配置だけ行いたい場合は YOUYAKU_ALLOW_BIG_DMG=1 を設定して再実行してください。" >&2
             exit 1
         fi

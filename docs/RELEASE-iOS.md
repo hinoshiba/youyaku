@@ -192,7 +192,7 @@ xcrun altool --upload-app -f build/export/Youyaku.ipa -t ios \
 |---|---|
 | **2.1 パフォーマンス**: モデル DL 中にアプリが落ちる/固まる | 端末 RAM に対して大きすぎるモデルは DL 不可にしてある（`ModelsView` の RAM フィルタ）。審査は小さい 0.6B で試すよう Notes に明記。 |
 | **2.5.2 実行コードの DL** と誤解される | 上記 Review Notes で「重みデータであって実行コードではない」と説明。 |
-| **5.1.1 プライバシー**: ポリシー URL に到達できない | 審査前に `youyaku.hinoshiba.com` が公開状態であること（Cloudflare Zero Trust でゲートしていないこと）を確認。 |
+| **5.1.1 プライバシー**: ポリシー URL に到達できない | 審査前に `youyaku.hinoshiba.com`（GitHub Pages）が公開・到達可能で、`privacy.html` / `terms.html` が開けることを確認。 |
 | **2.3 誇大表現**: 「完全オンデバイス」の断定 | iOS は常時オンデバイスなので断定 OK。サイト/文言は既定設定の限定付きで統一済み。 |
 | マイク/音声認識の usage description 不足 | `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` を設定済み（`project.yml`）。 |
 

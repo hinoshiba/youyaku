@@ -105,7 +105,7 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 7. **DMG を公証 + staple**、`stapler validate` で検証。
 8. **HP 配布用に配置**：公証済み DMG を `http_dist/download/Youyaku.dmg`（安定名）にコピーし、`http_dist/download/version.txt` にバージョンを書き出す。トップページのダウンロードボタン（`/download/Youyaku.dmg`）がこれを配信する。
    - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合はこの配置を**スキップ**する（配布不可の DMG を公開しないため）。
-   - `http_dist/download/*.dmg` と `version.txt` は生成物なので **git 管理外**。`wrangler` はローカルの `http_dist` を配信するため、ビルド後に `wrangler deploy` すればそのまま公開される。
+   - `http_dist/download/*.dmg` と `version.txt` は **git 管理下**（非公開リポのため。手動 commit）。commit → push で GitHub Actions が GitHub Pages へ公開する（後述「サイト公開」）。
 
 ### エンタイトルメント（`Youyaku.entitlements`）
 
@@ -126,22 +126,24 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 
 ## サイト公開（ダウンロードリンク）
 
-サイトは **`youyaku.hinoshiba.com`**（Cloudflare Workers）で配信する。macOS 版のダウンロード導線は
+サイトは **`youyaku.hinoshiba.com`**（**GitHub Pages**）で配信する。macOS 版のダウンロード導線は
 トップページ（`http_dist/index.html`）の「Mac版をダウンロード」ボタン（`/download/Youyaku.dmg`）。
 ページ側は `download/version.txt` を読んで配布中のバージョンを表示する。
 
-deploy は **GitHub Actions**（`.github/workflows/deploy-site.yml`）で自動化している。
+deploy は **GitHub Actions**（`.github/workflows/deploy-pages.yml`）で自動化している。
 `main` への push で `http_dist/` 配下（DMG・version.txt を含む）が変わると、`http_dist` を
-Cloudflare Workers へデプロイする。
+Pages のアーティファクトとしてアップロードして公開する。
 
 ### 初回セットアップ（一度だけ）
 
-1. **GitHub Secrets** を登録（リポジトリ Settings → Secrets and variables → Actions）:
-   - `CLOUDFLARE_API_TOKEN` … Workers のデプロイ権限を持つ API トークン
-     （Cloudflare ダッシュボード → My Profile → API Tokens → "Edit Cloudflare Workers" テンプレート）
-   - `CLOUDFLARE_ACCOUNT_ID` … 対象アカウントの Account ID（Workers & Pages 概要に表示）
-2. **カスタムドメイン**: Cloudflare の Worker 設定 → **Custom Domains** に `youyaku.hinoshiba.com` を追加する
-   （プロキシ DNS レコードは自動作成される）。この Actions 側ではドメインを設定しない。
+1. **プラン**: 本リポジトリは非公開のため、GitHub Pages の公開には **GitHub Pro 以上**が必要。
+   （無料プランでは private リポジトリの Pages を公開できない。public 化するか Pro にする。）
+2. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
+   **「GitHub Actions」** にする。
+3. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
+   hinoshiba.com を管理している場合）に **CNAME レコード** `youyaku` → `<ユーザー名>.github.io` を
+   **「DNS only（グレーの雲）」** で作成する（オレンジの雲＝プロキシ ON だと GitHub の DNS 検証と
+   証明書発行に失敗しやすい）。設定後、Settings → Pages で「Enforce HTTPS」を有効化する。
 
 ### リリースごとの手順
 
@@ -158,50 +160,29 @@ git push
 ```
 
 > **DMG は git 管理下**（本リポジトリは非公開のため GitHub Releases は使わない）。公証済み DMG を
-> commit することで、Actions のチェックアウトに含まれ、そのまま Cloudflare へデプロイされる。
+> commit することで、Actions のチェックアウトに含まれ、Pages アーティファクトに同梱されて公開される。
 > `.gitignore` からは除外済み。同じファイル名で上書き commit すれば最新ツリーは 1 つに保たれる。
-
-### 手元から直接 deploy する場合（任意）
-
-Actions を通さず手元から公開したいときは **`Scripts/deploy-site.sh`** を使う（`wrangler deploy` を
-直接叩かない）。DMG 消失ガード・25 MiB 制限チェック・連絡先プレースホルダガードを通してから deploy する。
+> 公開後は `https://youyaku.hinoshiba.com/download/Youyaku.dmg` からダウンロードできる。
 
 - Mac 版はサイト（`/download/Youyaku.dmg`）から直接ダウンロードさせる。
 - iOS は App Store 公開。手順は **[docs/RELEASE-iOS.md](RELEASE-iOS.md)** を参照。
 
-### いまは身内限定公開（Cloudflare Zero Trust / Access）
+### 身内限定公開について
 
-一般公開の前段階として、サイト全体を **Cloudflare Access（Zero Trust）でゲート** し、
-招待した友人だけがアクセスできる private ページとして配る。認証を通った利用者には
-DMG（`/download/Youyaku.dmg`）もそのまま配信されるので、ダウンロード導線側の追加設定は不要。
+GitHub Pages は公開サイトのため、Cloudflare Access のような認証ゲートは使えない
+（Pages の URL を知っていれば誰でもアクセスできる）。身内限定フェーズを厳密に保ちたい場合は、
+サイトのリンクを共有しない運用にとどめるか、認証付きの別ホスティング（Cloudflare Access 配下等）を
+検討する。iOS 審査時は、審査担当がプライバシーポリシー URL・サポート URL に到達できるよう
+サイトが公開されている必要がある。
 
-設定（Cloudflare ダッシュボード）:
+### DMG のサイズ上限
 
-1. **Zero Trust → Access → Applications → Add an application → Self-hosted** を開く。
-2. アプリのドメインをサイトのホスト名（独自ドメイン推奨）に設定。対象パスは全体（`*`）でよい。
-3. **ポリシー**を追加: Action = **Allow**、Include = **Emails**（友人のメールアドレスを列挙）
-   または特定ドメインの Emails。
-4. 保存。以降アクセス時に認証（メールのワンタイム PIN か IdP ログイン）が要求され、
-   許可した人だけが閲覧・ダウンロードできる。
-
-> 一般公開に切り替えるときは、この Access アプリ（またはポリシー）を無効化／削除するだけ。
-> コード側の変更は不要。
-
-### DMG が 25 MiB を超える場合
-
-**Cloudflare Workers の静的アセットは 1 ファイル 25 MiB が上限**。DMG がこれを超えると
-deploy / 配信が失敗する（`make-dmg.sh`・`deploy-site.sh`・GitHub Actions のいずれもサイズ超過時に
-停止する。`make-dmg.sh` 側は `YOUYAKU_ALLOW_BIG_DMG=1` で明示的に無視できる）。
-
-現状の内蔵構成（llama.framework の macOS スライスは約 12 MiB）では DMG は 25 MiB に収まる見込みだが、
-将来超えた場合は次のいずれかで対処する:
-
-- **DMG を 25 MiB 以下に抑える**（不要なアーキテクチャ・デバッグシンボルの除去など）。
-- **外部ホスティングへ移す**: 本リポジトリは非公開のため GitHub の**公開** Releases は使えない
-  （公開リポジトリでないと匿名 DL リンクにならない）。R2（Cloudflare のオブジェクトストレージ、
-  公開バケット）や、別途用意した公開ストレージへ DMG を置き、`http_dist/index.html` の
-  ダウンロードリンク 2 か所（ヒーロー・`#download`）と JSON-LD の `downloadUrl` をその URL に向ける。
-  この場合 DMG は git 管理から外してよい。
+GitHub Pages は **1 ファイル 100 MB・サイト全体 1 GB** がソフト上限（大容量バイナリの常時配信は
+推奨用途外だが、数十 MB 級の DMG は実用上問題ない）。現状の内蔵構成（llama.framework の macOS
+スライスは約 12 MiB）では DMG は十分収まる。将来大きくなった場合は、不要なアーキテクチャ・
+デバッグシンボルを削って DMG を小さくするか、外部の公開ストレージ（R2 の公開バケット等）へ
+DMG を移して `http_dist/index.html` のダウンロードリンク 2 か所（ヒーロー・`#download`）と
+JSON-LD の `downloadUrl` をその URL に向ける。
 
 ## llama.cpp（Vendor）の更新手順
 
@@ -230,7 +211,7 @@ App Store Connect へ提出する前に確認する:
 - [ ] **スクリーンショット**: **iPhone と iPad の両方**（`TARGETED_DEVICE_FAMILY: "1,2"` のため iPad 分も必須）。
 - [ ] **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`
 - [ ] **サポート URL**: `https://youyaku.hinoshiba.com/privacy.html#contact`（サイトの問い合わせセクション）。
-      **提出前に privacy.html の問い合わせ先プレースホルダを実アドレスへ差し替えること**（`Scripts/deploy-site.sh` が未設定のままの deploy をブロックする）。
+      **提出前に privacy.html の問い合わせ先プレースホルダを実アドレスへ差し替えること**（デプロイ用 GitHub Actions が未設定のままの公開をブロックする）。
 - [ ] **App Privacy（プライバシー詳細）**: 「**データ収集なし**」で申告する
       （音声認識・要約ともデバイス上で完結し、外部へデータを送信しないため）。
 - [ ] **年齢レーティング**: 新しい questionnaire（2025 年改定版）に回答する（Youyaku は該当コンテンツなしの想定）。
@@ -244,7 +225,8 @@ App Store Connect へ提出する前に確認する:
       > アプリの機能・挙動は変化しません（ガイドライン 2.5.2 の実行コード DL には該当しません）。
       >
       > 試し方: 設定からモデル「Qwen3 0.6B」をダウンロードすると最速で要約機能を確認できます。
-- [ ] **サイトの Access 制限解除**: 審査前に `https://youyaku.hinoshiba.com` の **Cloudflare Zero Trust（Access）制限を解除**する
+- [ ] **サイトの公開確認**: 審査前に `https://youyaku.hinoshiba.com` が公開・到達可能で、
+      `privacy.html` / `terms.html` が開けることを確認する
       （プライバシーポリシー URL・サポート URL に審査担当者がアクセスできないとリジェクトされる）。
 
 ---

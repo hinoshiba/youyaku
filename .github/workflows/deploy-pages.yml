@@ -1,0 +1,75 @@
+name: Deploy site (GitHub Pages)
+
+# 配布サイト(http_dist)を GitHub Pages へデプロイする。
+#
+# トリガー:
+#   - main への push で http_dist/ 配下(DMG・version.txt を含む)が変わったとき
+#   - Actions 画面からの手動実行(workflow_dispatch)
+#
+# 事前設定(初回のみ):
+#   1. リポジトリ Settings → Pages → Build and deployment → Source を「GitHub Actions」にする。
+#   2. カスタムドメイン youyaku.hinoshiba.com は http_dist/CNAME で指定済み。
+#      DNS(Cloudflare)側で CNAME レコード youyaku → <ユーザー名>.github.io を「DNS only(グレー)」で作成する。
+#   3. 非公開リポジトリの場合、GitHub Pages の公開には Pro 以上のプランが必要。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "http_dist/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+# GITHUB_TOKEN に Pages デプロイ権限を与える
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時デプロイを1つに制限(進行中があってもキャンセルせず順番に流す)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 連絡先プレースホルダの公開ブロック
+        run: |
+          if grep -q 'contact-placeholder' http_dist/privacy.html; then
+            echo "::error::privacy.html の問い合わせ先がプレースホルダのままです。公開前に実アドレスへ差し替えてください。"
+            exit 1
+          fi
+
+      - name: サイトを組み立て(開発用ドキュメントを除外)
+        run: |
+          mkdir -p _site
+          cp -R http_dist/. _site/
+          rm -f _site/download/README.md
+          touch _site/.nojekyll
+          DMG=_site/download/Youyaku.dmg
+          if [ -f "$DMG" ]; then
+            echo "DMG: $(( $(stat -c%s "$DMG") / 1024 / 1024 )) MiB"
+          else
+            echo "::warning::http_dist/download/Youyaku.dmg が見つかりません。DMG なしで公開します(ダウンロードリンクは 404 になります)。証明書のある Mac で ./build.sh --dist を実行し、生成された DMG を commit してください。"
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

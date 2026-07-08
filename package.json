@@ -1,8 +1,0 @@
-{
-  "name": "youyaku-site",
-  "private": true,
-  "description": "Youyaku 配布サイト(http_dist)の Cloudflare Workers デプロイ用。wrangler のバージョンを固定する",
-  "devDependencies": {
-    "wrangler": "4.108.0"
-  }
-}

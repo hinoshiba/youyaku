@@ -1,3 +1,0 @@
-# Cloudflare Workers の静的アセットとして配信しないファイル(.gitignore と同じ書式)。
-# 開発用ドキュメントは配信ツリーから除外する(https://<site>/download/README.md で公開されないように)。
-download/README.md
