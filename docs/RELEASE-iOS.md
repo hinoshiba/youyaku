@@ -138,19 +138,119 @@ xcrun altool --upload-app -f build/export/Youyaku.ipa -t ios \
 
 ## 3. App Store Connect でのメタデータ設定
 
-アプリのバージョンページで設定する（[提出前チェックリスト](RELEASE.md#ios-app-store-提出チェックリスト)も参照）:
+App Store Connect → アプリ → 対象バージョンのページで設定する（[提出前チェックリスト](RELEASE.md#ios-app-store-提出チェックリスト)も参照）。
+以下は 2026-07 時点の Apple 公式仕様（[Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/) /
+[Creating Your Product Page](https://developer.apple.com/app-store/product-page/)）で確認した内容。
 
-- **スクリーンショット**: iPhone（6.9" と 6.5" 等）と **iPad（13"）の両方**が必須
-  （`TARGETED_DEVICE_FAMILY: "1,2"` のため iPad を落とすと審査で止まる）。
-  `Youyaku --snapshot` は macOS 用。iOS はシミュレータで撮る:
-  ```bash
-  xcrun simctl boot "iPhone 16 Pro Max"
-  # アプリを起動して各画面を表示し
-  xcrun simctl io booted screenshot iphone-home.png
-  ```
-- **プロモーションテキスト / 概要 / キーワード**: 日本語（＋任意で英語ローカライズ）。
-  「完全ローカル」「オンデバイス」を訴求する場合は、macOS 版の設定次第でサーバー認識になり得る点
-  （iOS は常に端末内）と齟齬がないようにする。
+### 3.1 スクリーンショット（step by step）
+
+**必要なサイズ（2024〜2025 に簡素化済み）**: 現在必須なのは次の **2 クラスだけ**。他サイズは Apple が
+自動スケールするので用意不要。iPhone のみ／iPad のみのアプリはどちらか一方でよいが、本アプリは
+iPhone + iPad 両対応（`TARGETED_DEVICE_FAMILY: "1,2"`）なので **両方必須**。
+
+| クラス | 縦向きの受理寸法（いずれか。1px でもズレると不可） | 撮影用シミュレータ |
+|---|---|---|
+| **6.9" iPhone**（必須） | `1320 x 2868` / `1290 x 2796` / `1260 x 2736` | iPhone 16 Pro Max（1320×2868 出力）|
+| **13" iPad**（必須） | `2064 x 2752` / `2048 x 2732` | iPad Pro 13-inch (M4)（2064×2752 出力）|
+
+- 枚数は **1 クラスにつき最小 1・最大 10 枚**（`.png` / `.jpg` / `.jpeg`）。実務では各 3〜5 枚を推奨。
+- シミュレータのネイティブ出力はこの寸法に一致するので、**リサイズせずそのまま提出**する（手動リサイズは 1px ズレの原因）。
+
+**撮る画面（本アプリの 4 タブ。1 枚目に最も価値が伝わる画面を置く）**:
+1. **音声入力（DictateView）** ← 1 枚目推奨。中央の大きなマイク＋整形結果が見える状態
+2. **モデル（ModelsView）** … 日本語モデルをワンタップ DL できるカタログ
+3. **履歴（HistoryView）** … 過去の入力を再利用
+4. **設定（SettingsView）** … オンデバイス処理・プライバシーの訴求
+
+**手順**:
+
+```bash
+# ① シミュレータを起動(6.9" iPhone)
+cd ios && xcodegen generate
+xcrun simctl boot "iPhone 16 Pro Max"
+open -a Simulator
+
+# ② アプリをインストール(Release ビルド。ios/build.sh で Debug 版でも撮影は可)
+./build.sh "iPhone 16 Pro Max" run
+
+# ③ ステータスバーを審査向けに整形(時刻 9:41・フル電波・フル電池・キャリア名なし)
+#    ※オプション名は環境により異なることがあるので `xcrun simctl help status_bar` で最終確認
+xcrun simctl status_bar booted override \
+  --time "9:41" \
+  --dataNetwork wifi --wifiMode active --wifiBars 3 \
+  --cellularMode active --cellularBars 4 \
+  --batteryState charged --batteryLevel 100 \
+  --operatorName ""
+
+# ④ 各タブを表示しながら撮影(アプリ操作は手動 or シミュレータ上で)
+xcrun simctl io booted screenshot ~/Desktop/shots/iphone-1-dictate.png
+xcrun simctl io booted screenshot ~/Desktop/shots/iphone-2-models.png
+xcrun simctl io booted screenshot ~/Desktop/shots/iphone-3-history.png
+xcrun simctl io booted screenshot ~/Desktop/shots/iphone-4-settings.png
+
+# ⑤ 撮影後、ステータスバーの上書きを解除
+xcrun simctl status_bar booted clear
+
+# ⑥ iPad でも同じことを繰り返す
+xcrun simctl boot "iPad Pro 13-inch (M4)"
+# …②〜⑤ を iPad Pro 13-inch (M4) に対して実行(ファイル名は ipad-* にする)
+
+# 寸法確認(受理寸法ちょうどであること)
+sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
+```
+
+**やってはいけないこと（審査で弾かれる／Guideline 2.3 正確なメタデータ）**:
+- **端末フレーム（ベゼル）を合成しない**。提出するのは受理寸法ちょうどの**フラットなアプリ画面画像**。
+  枠は App Store 側が表示時に付ける。
+- **生のステータスバーを写さない**（実在キャリア名・低電波・低電池・実時刻）。上記③で整形する。
+- **価格・期間限定の宣伝文・他プラットフォーム名（Android 等）・未実装機能のモック**を画面内に入れない。
+- 文字を焼き込むキャプション付き画像にする場合も、上記の禁止事項は同じ。
+
+> App Preview（動画）を登録する場合は、公式仕様上つねにスクリーンショットより前に表示される
+> （`App previews always precede screenshots`）。動画は任意。
+
+### 3.2 テキスト項目（文字数上限と例文）
+
+日本語を主言語（Primary Language）にし、必要なら英語ローカライズを追加する。各上限は Apple 公式で確認済み:
+
+| 項目 | 上限 | 更新タイミング | 備考 |
+|---|---|---|---|
+| App 名（Name） | **30 文字**（最小 2） | バージョン提出時 | 例: `Youyaku ー 声でAIに指示` |
+| サブタイトル（Subtitle） | **30 文字** | バージョン提出時 | 名前の下に表示 |
+| プロモーションテキスト | **170 文字** | **いつでも（審査不要）** | description 上部に表示。お知らせ向き |
+| 概要（Description） | **4,000 文字** | バージョン提出時 | 機能説明の本文 |
+| キーワード（Keywords） | **100 文字（合計）** | バージョン提出時 | カンマ区切り・**カンマ後にスペースを入れない** |
+
+- **プロモーションテキストだけは新バージョンを出さずに随時更新できる**（「近日 App Store へ」→「公開しました」等の告知に使える）。概要はバージョン提出時のみ更新可。
+- **キーワードのスペースは 100 文字にカウントされ無駄**になる。`音声入力,AI,ローカル` のようにカンマ直後は詰める（句の中の語区切りにはスペース可）。
+
+**例文（そのまま使わず調整すること。iOS は常に端末内処理なので断定表現も可）**:
+
+- **サブタイトル案（30 字以内）**: `話すだけ、ローカルAIが指示文に整える`
+- **プロモーションテキスト案（170 字以内）**:
+  > 声で話すだけ。オンデバイスAIがフィラーを除き、AIアシスタントに伝わる指示文へ整えます。音声もテキストもすべて端末内で処理。アカウント不要・無料。
+- **キーワード案（100 字以内・カンマ後スペースなし）**:
+  > `音声入力,音声認識,オンデバイス,ローカルAI,文字起こし,ディクテーション,プロンプト,指示文,議事録,メモ,AIアシスタント`
+- **概要案（骨子。4,000 字以内で肉付け）**:
+  > Youyaku（ようやく）は、AIアシスタントへの指示を「声」で作るための音声入力アプリです。話した内容を、オンデバイスのローカルLLMが「AIに伝わる指示文」へ整えます。
+  >
+  > ■ すべて端末内で完結
+  > 音声認識も文章整形も、すべてこの端末の中だけで動作します。音声もテキストも外部に送信されません（モデルのダウンロード時のみ Hugging Face に接続します）。
+  >
+  > ■ 主な機能
+  > ・話すだけでフィラー（「えー」「あの」）や言い直しを除去し、構造化された指示文に再構成
+  > ・そのまま／整文／AI命令化の3モード
+  > ・日本語に強いモデルを厳選（端末のメモリに合わせて選択・ワンタップDL）
+  > ・入力履歴の検索・再利用
+  >
+  > アカウント登録不要。完全無料。
+
+> **注意**: キーワードや概要に **他社サービス名・商標（ChatGPT / Claude 等）を入れない**こと
+> （Guideline 2.3.7・商標の観点でリジェクト要因になりやすい）。概要本文で「AIアシスタントへの指示」
+> のように一般名詞で説明するのは問題ないが、キーワード欄にブランド名を並べるのは避ける。
+
+### 3.3 その他の必須項目
+
 - **サポート URL**: `https://youyaku.hinoshiba.com/privacy.html#contact`
 - **マーケティング URL**（任意）: `https://youyaku.hinoshiba.com/`
 - **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`
