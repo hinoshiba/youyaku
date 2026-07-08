@@ -162,18 +162,31 @@ iPhone + iPad 両対応（`TARGETED_DEVICE_FAMILY: "1,2"`）なので **両方�
 3. **履歴（HistoryView）** … 過去の入力を再利用
 4. **設定（SettingsView）** … オンデバイス処理・プライバシーの訴求
 
+> **シミュレータ機種名は Xcode のバージョンで変わる**。`xcrun simctl boot "iPhone 16 Pro Max"` が
+> `Invalid device or device pair` で失敗する場合、その名前のシミュレータが無いだけ。下記①で
+> **実際に使える機種を一覧確認**し、上のクラスに合うものを選ぶ（6.9" クラスなら 17/16/15/14 Pro Max・
+> 16/15 Plus のいずれか、13" クラスなら iPad Pro 13-inch (M4) か iPad Pro 12.9-inch のいずれか）。
+> 一覧に iOS/iPadOS シミュレータが無ければ **Xcode → Settings → Components** でランタイムを入れる。
+
 **手順**:
 
 ```bash
-# ① シミュレータを起動(6.9" iPhone)
 cd ios && xcodegen generate
-xcrun simctl boot "iPhone 16 Pro Max"
+
+# ① 使えるシミュレータを一覧確認し、6.9" iPhone クラスと 13" iPad クラスの
+#    「正確な名前」または UDID を控える(名前は完全一致が必要)
+xcrun simctl list devices available
+#   例: "iPhone 15 Pro Max (AAAAAAAA-....)" のように表示される
+
+# ② 一覧に出た名前(または UDID)で起動する。以降 booted は「起動中のデバイス」を指す
+DEVICE="iPhone 15 Pro Max"      # ← ①で確認した実在の名前に置き換える
+xcrun simctl boot "$DEVICE"
 open -a Simulator
 
-# ② アプリをインストール(Release ビルド。ios/build.sh で Debug 版でも撮影は可)
-./build.sh "iPhone 16 Pro Max" run
+# ③ アプリをインストールして起動(ios/build.sh。Debug 版でも撮影は可)
+./build.sh "$DEVICE" run
 
-# ③ ステータスバーを審査向けに整形(時刻 9:41・フル電波・フル電池・キャリア名なし)
+# ④ ステータスバーを審査向けに整形(時刻 9:41・フル電波・フル電池・キャリア名なし)
 #    ※オプション名は環境により異なることがあるので `xcrun simctl help status_bar` で最終確認
 xcrun simctl status_bar booted override \
   --time "9:41" \
@@ -182,22 +195,27 @@ xcrun simctl status_bar booted override \
   --batteryState charged --batteryLevel 100 \
   --operatorName ""
 
-# ④ 各タブを表示しながら撮影(アプリ操作は手動 or シミュレータ上で)
+# ⑤ 各タブを表示しながら撮影(アプリ操作は手動 or シミュレータ上で)
+mkdir -p ~/Desktop/shots
 xcrun simctl io booted screenshot ~/Desktop/shots/iphone-1-dictate.png
 xcrun simctl io booted screenshot ~/Desktop/shots/iphone-2-models.png
 xcrun simctl io booted screenshot ~/Desktop/shots/iphone-3-history.png
 xcrun simctl io booted screenshot ~/Desktop/shots/iphone-4-settings.png
 
-# ⑤ 撮影後、ステータスバーの上書きを解除
+# ⑥ 撮影後、ステータスバーの上書きを解除
 xcrun simctl status_bar booted clear
 
-# ⑥ iPad でも同じことを繰り返す
-xcrun simctl boot "iPad Pro 13-inch (M4)"
-# …②〜⑤ を iPad Pro 13-inch (M4) に対して実行(ファイル名は ipad-* にする)
+# ⑦ iPad(13" クラス)でも同じことを繰り返す
+DEVICE="iPad Pro 13-inch (M4)"  # ← ①の一覧にある実在名に置き換える
+xcrun simctl boot "$DEVICE"
+# …③〜⑥ を実行(ファイル名は ipad-* にする)
 
 # 寸法確認(受理寸法ちょうどであること)
 sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 ```
+
+> 名前合わせが面倒なら、`open Youyaku.xcodeproj` で Xcode を開き、ツールバーで対応シミュレータを
+> 選んで **⌘R** で実行するのが確実(Xcode が自動起動する)。起動後に上の `simctl io booted screenshot` で撮る。
 
 **やってはいけないこと（審査で弾かれる／Guideline 2.3 正確なメタデータ）**:
 - **端末フレーム（ベゼル）を合成しない**。提出するのは受理寸法ちょうどの**フラットなアプリ画面画像**。
