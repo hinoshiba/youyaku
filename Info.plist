@@ -33,7 +33,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>話した内容をテキストに変換するために音声認識を使用します。認識はデバイス上で行われます。</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Youyaku</string>
+	<string>© 2026 hinoshiba</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

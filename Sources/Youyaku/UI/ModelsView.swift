@@ -80,10 +80,19 @@ struct ModelsView: View {
                 }
             }
 
-            Label(tr("音声も文章もモデルも、すべて Mac の中だけで完結します。外部にデータは送信されません。", "Your voice, text, and models all stay on your Mac. No data is ever sent externally."),
-                  systemImage: "lock.shield")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            if app.settings.value.engine == .ollama {
+                Label(tr("Ollama 利用中は「すべて Mac 内で完結」の対象外です。整形するテキストは Ollama サーバー(既定はこの Mac、設定で外部ホストも指定可)へ送信されます。", "With Ollama, the \"everything stays on your Mac\" guarantee does not apply. The text being refined is sent to your Ollama server (this Mac by default; you can point it to an external host in Settings)."),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Label(tr("音声も文章もモデルも、すべて Mac の中だけで完結します。外部にデータは送信されません。", "Your voice, text, and models all stay on your Mac. No data is ever sent externally."),
+                      systemImage: "lock.shield")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(18)
         .card()
