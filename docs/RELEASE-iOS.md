@@ -56,16 +56,7 @@ settings:
     DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID に置き換える
 ```
 
-> `project.yml` を書き換えずに渡したい場合は、`xcodebuild` の引数
-> `DEVELOPMENT_TEAM=XXXXXXXXXX` で毎回渡してもよい（下の手順はこの方式）。Team ID は秘密情報ではない
-> （配布アプリの署名に含まれる公開識別子）が、フォーク時は自分のものを使う。
-
-### App Store Connect API キー（CLI アップロード用）
-
-コマンドラインからアップロードする場合に必要（Xcode GUI を使うなら不要）。
-App Store Connect → Users and Access → Integrations → App Store Connect API → ＋ で
-**キーを作成**し、`AuthKey_XXXXXXXXXX.p8` をダウンロードする（再ダウンロード不可・**commit 厳禁**、
-`.gitignore` 済み）。あわせて **Key ID** と **Issuer ID** を控える。
+> Team ID は秘密情報ではない（配布アプリの署名に含まれる公開識別子）。
 
 ---
 
@@ -84,9 +75,7 @@ App Store Connect → Users and Access → Integrations → App Store Connect AP
 
 ---
 
-## 2. アーカイブとアップロード
-
-### 方法 A: Xcode GUI（推奨・初回はこちらが確実）
+## 2. アーカイブとアップロード（Xcode）
 
 ```bash
 cd ios
@@ -98,46 +87,7 @@ open Youyaku.xcodeproj
 2. **Product → Archive**。
 3. Organizer が開いたら **Distribute App → App Store Connect → Upload** を選び、案内に従う
    （自動署名なら証明書・プロファイルは Xcode が用意する）。
-
-### 方法 B: コマンドライン（CI・再現性重視）
-
-```bash
-cd ios
-xcodegen generate
-
-# 1) アーカイブ（実機向け Release）
-xcodebuild \
-  -project Youyaku.xcodeproj \
-  -scheme Youyaku \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath build/Youyaku.xcarchive \
-  -allowProvisioningUpdates \
-  DEVELOPMENT_TEAM=XXXXXXXXXX \
-  archive
-
-# 2) エクスポート & アップロード
-cp ExportOptions.plist.example ExportOptions.plist    # 初回だけ。teamID を自分の値に編集
-xcodebuild -exportArchive \
-  -archivePath build/Youyaku.xcarchive \
-  -exportOptionsPlist ExportOptions.plist \
-  -exportPath build/export \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$HOME/keys/AuthKey_XXXXXXXXXX.p8" \
-  -authenticationKeyID XXXXXXXXXX \
-  -authenticationKeyIssuerID xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-`ExportOptions.plist` の `destination` が `upload` なら、この 2) の完了時に App Store Connect へ
-アップロードされる。`export` にした場合は `build/export/Youyaku.ipa` が出るので、
-**Transporter**アプリ（Mac App Store で無料）または以下でアップロードする:
-
-```bash
-xcrun altool --upload-app -f build/export/Youyaku.ipa -t ios \
-  --apiKey XXXXXXXXXX --apiIssuer xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-アップロード後、App Store Connect で処理が終わると（数分〜十数分）、対象ビルドが選択可能になる。
+4. アップロード後、App Store Connect で処理が終わると（数分〜十数分）、対象ビルドが選択可能になる。
 
 ---
 
@@ -334,4 +284,4 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 - App Store Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
 - App Privacy Details: https://developer.apple.com/app-store/app-privacy-details/
-- Uploading apps (Xcode / altool / Transporter): https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
+- Uploading apps (Xcode Organizer / Transporter): https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
