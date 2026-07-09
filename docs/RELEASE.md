@@ -1,5 +1,8 @@
 # Youyaku 配布・署名・公証 手順書(macOS)
 
+> **メンテナ向けドキュメント。** リリース担当者が macOS 版を Developer ID 直販で配布するための手順です。
+> アプリのビルドや開発だけが目的なら [README](../README.md) と [CONTRIBUTING](../CONTRIBUTING.md) で十分です。
+
 macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布するための手順書。
 `build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple** までが自動で走る。
 
@@ -105,7 +108,7 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 7. **DMG を公証 + staple**、`stapler validate` で検証。
 8. **HP 配布用に配置**：公証済み DMG を `http_dist/download/Youyaku.dmg`（安定名）にコピーし、`http_dist/download/version.txt` にバージョンを書き出す。トップページのダウンロードボタン（`/download/Youyaku.dmg`）がこれを配信する。
    - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合はこの配置を**スキップ**する（配布不可の DMG を公開しないため）。
-   - `http_dist/download/*.dmg` と `version.txt` は **git 管理下**（非公開リポのため。手動 commit）。commit → push で GitHub Actions が GitHub Pages へ公開する（後述「サイト公開」）。
+   - `http_dist/download/*.dmg` と `version.txt` は **git 管理下**（手動 commit）。commit → push で GitHub Actions が GitHub Pages へ公開する（後述「サイト公開」）。
 
 ### エンタイトルメント（`Youyaku.entitlements`）
 
@@ -136,11 +139,9 @@ Pages のアーティファクトとしてアップロードして公開する�
 
 ### 初回セットアップ（一度だけ）
 
-1. **プラン**: 本リポジトリは非公開のため、GitHub Pages の公開には **GitHub Pro 以上**が必要。
-   （無料プランでは private リポジトリの Pages を公開できない。public 化するか Pro にする。）
-2. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
+1. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
    **「GitHub Actions」** にする。
-3. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
+2. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
    hinoshiba.com を管理している場合）に **CNAME レコード** `youyaku` → `<ユーザー名>.github.io` を
    **「DNS only（グレーの雲）」** で作成する（オレンジの雲＝プロキシ ON だと GitHub の DNS 検証と
    証明書発行に失敗しやすい）。設定後、Settings → Pages で「Enforce HTTPS」を有効化する。
@@ -159,21 +160,10 @@ git commit -m "リリース vX.Y.Z"
 git push
 ```
 
-> **DMG は git 管理下**（本リポジトリは非公開のため GitHub Releases は使わない）。公証済み DMG を
-> commit することで、Actions のチェックアウトに含まれ、Pages アーティファクトに同梱されて公開される。
-> `.gitignore` からは除外済み。同じファイル名で上書き commit すれば最新ツリーは 1 つに保たれる。
 > 公開後は `https://youyaku.hinoshiba.com/download/Youyaku.dmg` からダウンロードできる。
 
 - Mac 版はサイト（`/download/Youyaku.dmg`）から直接ダウンロードさせる。
 - iOS は App Store 公開。手順は **[docs/RELEASE-iOS.md](RELEASE-iOS.md)** を参照。
-
-### 身内限定公開について
-
-GitHub Pages は公開サイトのため、Cloudflare Access のような認証ゲートは使えない
-（Pages の URL を知っていれば誰でもアクセスできる）。身内限定フェーズを厳密に保ちたい場合は、
-サイトのリンクを共有しない運用にとどめるか、認証付きの別ホスティング（Cloudflare Access 配下等）を
-検討する。iOS 審査時は、審査担当がプライバシーポリシー URL・サポート URL に到達できるよう
-サイトが公開されている必要がある。
 
 ### DMG のサイズ上限
 
@@ -260,5 +250,4 @@ xcrun stapler validate dist/Youyaku-*.dmg
 
 ## 関連
 
-- 販売（有料アプリ / アプリ内課金）を行う場合の **特定商取引法の表記・氏名/住所プライバシー** はメモリ（`youyaku-release-monetization-legal`）に整理済み。無料配布 + 寄付のみなら特商法は非適用。
 - 署名周り（TCC 永続化用のローカル自己署名証明書）は `Scripts/setup-signing.sh` を参照。

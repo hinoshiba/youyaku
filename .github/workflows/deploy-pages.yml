@@ -10,7 +10,6 @@ name: Deploy site (GitHub Pages)
 #   1. リポジトリ Settings → Pages → Build and deployment → Source を「GitHub Actions」にする。
 #   2. カスタムドメイン youyaku.hinoshiba.com は http_dist/CNAME で指定済み。
 #      DNS(Cloudflare)側で CNAME レコード youyaku → <ユーザー名>.github.io を「DNS only(グレー)」で作成する。
-#   3. 非公開リポジトリの場合、GitHub Pages の公開には Pro 以上のプランが必要。
 
 on:
   push:
