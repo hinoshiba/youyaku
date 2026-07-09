@@ -43,6 +43,17 @@ final class AppModel: ObservableObject {
         speech.onAutoStop = { [weak self] reason in
             Task { await self?.finishRecording(autoStopReason: reason) }
         }
+        // 音声入力(ディクテーション)がオフ等で認識がそもそも使えない場合は、
+        // 無言のまま止めず、原因と対処を明確なエラーとして表示する
+        speech.onUnavailable = { [weak self] message in
+            guard let self, self.phase == .recording else { return }
+            self.refineTask?.cancel()
+            self.refineTask = nil
+            self.transcript = ""
+            self.refined = ""
+            self.statusMessage = nil
+            self.phase = .error(message)
+        }
         modelStore.onInstalled = { [weak self] fileName in
             guard let self else { return }
             self.settings.value.builtinModelFile = fileName

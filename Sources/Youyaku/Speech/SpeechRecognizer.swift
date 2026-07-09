@@ -24,6 +24,10 @@ final class SpeechRecognizer: ObservableObject {
 
     var onAutoStop: ((AutoStopReason) -> Void)?
 
+    // 認識が構成上そもそも利用できない(例: システムのディクテーションがオフ)時に、
+    // リトライせず利用者向けの明確な案内メッセージを渡して停止するための通知。
+    var onUnavailable: ((String) -> Void)?
+
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -437,6 +441,41 @@ final class SpeechRecognizer: ObservableObject {
         #endif
     }
 
+    // 認識が構成上そもそも使えない(ディクテーションがオフ等)時に、セッションを止めて
+    // 利用者向けの案内を通知する。stop()/cancel() と違い、明確なエラー文言を UI へ渡す。
+    private func reportUnavailable(_ message: String) {
+        guard isRunning else { return }
+        isRunning = false
+        taskGeneration += 1   // これ以降の遅延コールバックを無視
+        stopAudio()
+        task?.cancel()
+        task = nil
+        request = nil
+        partial = ""
+        level = 0
+        finish(with: bestTranscript)   // stop() 待ちがあれば解決する
+        onUnavailable?(message)
+    }
+
+    // ディクテーション(音声入力)がオフのために認識できないエラーか。
+    // マイク権限があっても、この機能が無効だと SFSpeechRecognitionTask が即エラーになる。
+    private static func isDictationDisabled(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == "kLSRErrorDomain" && ns.code == 201 { return true }
+        let desc = ns.localizedDescription.lowercased()
+        return desc.contains("dictation") && desc.contains("disabled")
+    }
+
+    private static var dictationDisabledMessage: String {
+        #if os(iOS)
+        return tr("音声入力(ディクテーション)がオフのため、音声認識を開始できません。設定 > 一般 > キーボード > 音声入力 をオンにしてください。",
+                  "Speech recognition can't start because Dictation is off. Turn it on in Settings > General > Keyboard > Enable Dictation.")
+        #else
+        return tr("音声入力(ディクテーション)がオフのため、音声認識を開始できません。システム設定 > キーボード > 音声入力 をオンにしてください。",
+                  "Speech recognition can't start because Dictation is off. Turn it on in System Settings > Keyboard > Dictation.")
+        #endif
+    }
+
     private func handle(_ result: SFSpeechRecognitionResult?, _ error: Error?, generation: Int) {
         // 再開前の古いタスクからの遅延コールバックは無視する
         guard generation == taskGeneration else { return }
@@ -493,7 +532,14 @@ final class SpeechRecognizer: ObservableObject {
             }
         }
 
-        if error != nil {
+        if let error {
+            // ディクテーション(音声入力)がオフだと、マイク権限があっても認識タスクは
+            // 即エラーになる(kLSRErrorDomain 201「Siri and Dictation are disabled」)。
+            // リトライしても直らないため、利用者に設定変更を促す明確なエラーにする。
+            if isRunning, Self.isDictationDisabled(error) {
+                reportUnavailable(Self.dictationDisabledMessage)
+                return
+            }
             if isRunning {
                 commitLiveSegment()
                 // 声が入っているのに失敗する時だけ「進展なし」として数える。

@@ -77,6 +77,19 @@ final class AppState: ObservableObject {
         speech.onAutoStop = { [weak self] reason in
             Task { await self?.finishRecording(autoStopReason: reason) }
         }
+        // 認識が構成上そもそも使えない(ディクテーションがオフ等)場合は、
+        // 無言のまま止めず、原因と対処を明確なエラーとして表示する
+        speech.onUnavailable = { [weak self] message in
+            guard let self, self.phase == .recording else { return }
+            self.refineTask?.cancel()
+            self.refineTask = nil
+            self.dismissWork?.cancel()
+            self.transcript = ""
+            self.refined = ""
+            self.statusMessage = nil
+            self.phase = .error(message)
+            self.hud.show()
+        }
         // ダウンロード=そのモデルを使いたいという意思表示なので、完了時に自動で切り替える
         modelStore.onInstalled = { [weak self] fileName in
             guard let self else { return }
