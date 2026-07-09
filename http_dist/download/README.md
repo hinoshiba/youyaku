@@ -10,8 +10,7 @@ DMG をここへ **安定名で** 配置する:
 
 ## 配布フロー(git 管理下 → GitHub Pages)
 
-GitHub Pages はリポジトリのツリーから配信するため、**この 2 ファイルを git に commit** して配布する
-(public リポジトリでは GitHub Releases に添付する方式も選べる。詳細は `docs/RELEASE.md`)。
+**この 2 ファイルを git に commit** して配布する(詳細は `docs/RELEASE.md`)。
 
 1. 証明書のある Mac で `./build.sh --dist`(要 `YOUYAKU_NOTARY_PROFILE`)を実行 → ここに DMG と version.txt が置かれる。
 2. `git add http_dist/download/Youyaku.dmg http_dist/download/version.txt && git commit && git push`
@@ -28,5 +27,3 @@ GitHub Pages はリポジトリのツリーから配信するため、**この 2
 - GitHub Pages は **1 ファイル 100 MB・サイト全体 1 GB** がソフト上限。DMG がこれを超える場合は
   DMG を小さくするか、外部の公開ストレージへ切り替えて `http_dist/index.html` のダウンロードリンクを
   そこへ向けること(`make-dmg.sh` はサイズ超過時にエラーで停止する)。
-- DMG はバイナリのため commit するとリポジトリ履歴が肥大化する。同じファイル名で上書き
-  commit すれば最新ツリーは 1 つに保たれる(過去版は履歴に残る)。
