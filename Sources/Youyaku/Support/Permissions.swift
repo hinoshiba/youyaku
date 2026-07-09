@@ -88,4 +88,12 @@ enum Permissions {
     static func openMicrophoneSettings() { openSystemSettings(pane: "Privacy_Microphone") }
     static func openSpeechSettings() { openSystemSettings(pane: "Privacy_SpeechRecognition") }
     static func openAccessibilitySettings() { openSystemSettings(pane: "Privacy_Accessibility") }
+
+    /// 「音声入力(ディクテーション)」の設定を開く。個別セクションへ飛ぶ公開 URL は
+    /// 無いため、それを含むキーボード設定ペインを開く。
+    static func openDictationSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 }

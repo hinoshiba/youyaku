@@ -177,8 +177,13 @@ struct HUDView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 10) {
-                    Button(tr("マイク設定を開く", "Open Microphone Settings")) { Permissions.openMicrophoneSettings() }
-                    Button(tr("音声認識設定を開く", "Open Speech Recognition Settings")) { Permissions.openSpeechSettings() }
+                    if message.contains("ディクテーション") || message.localizedCaseInsensitiveContains("Dictation") {
+                        // ディクテーションがオフのエラー: 直接その設定を開けるようにする
+                        Button(tr("音声入力設定を開く", "Open Dictation Settings")) { Permissions.openDictationSettings() }
+                    } else {
+                        Button(tr("マイク設定を開く", "Open Microphone Settings")) { Permissions.openMicrophoneSettings() }
+                        Button(tr("音声認識設定を開く", "Open Speech Recognition Settings")) { Permissions.openSpeechSettings() }
+                    }
                 }
                 .controlSize(.small)
                 Spacer()
