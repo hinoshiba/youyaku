@@ -1,12 +1,15 @@
 # Youyaku iOS 版 App Store 提出 手順書
 
+> **メンテナ向けドキュメント。** リリース担当者が iOS 版を App Store に提出するための手順です。
+> 開発・ビルドだけが目的なら [ios/README.md](../ios/README.md) を参照してください。
+
 iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の直販手順は [RELEASE.md](RELEASE.md) を参照。
 
 - **Bundle ID**: `com.hinoshiba.youyaku`（macOS 版と統一。iOS/macOS で同一 ID）
 - **配布**: App Store（macOS 版は直販 DMG。iOS だけがストア配布）
 - **対応端末**: iPhone + iPad（`TARGETED_DEVICE_FAMILY: "1,2"`）
 - **最低 OS**: iOS 17.0
-- **プロジェクト生成**: [XcodeGen](https://github.com/yonsm/XcodeGen)（`ios/project.yml` → `Youyaku.xcodeproj`）
+- **プロジェクト生成**: [XcodeGen](https://github.com/yonaskolb/XcodeGen)（`ios/project.yml` → `Youyaku.xcodeproj`）
 
 > `ios/build.sh` は**シミュレータ動作確認用**（Debug・署名なし）。App Store 提出は本書の手順で行う。
 
@@ -19,7 +22,7 @@ iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の�
 ```bash
 # XcodeGen（未導入なら）
 brew install xcodegen
-# Xcode 本体（App Store 版 Xcode 15.3 以降を推奨）と Command Line Tools
+# Xcode 本体（App Store 版 Xcode 16 以降を推奨）と Command Line Tools
 xcode-select -p                       # /Applications/Xcode.app/Contents/Developer になっていること
 sudo xcodebuild -license accept
 ```
@@ -42,18 +45,20 @@ sudo xcodebuild -license accept
 
 ### 署名の Team ID を設定
 
-`ios/project.yml` の `DEVELOPMENT_TEAM` が空なので、自分の Team ID を設定する（Developer サイト →
-Membership の Team ID・10 桁）。**`project.yml` を直接編集する**（生成される `.xcodeproj` は毎回上書きされるため）:
+`ios/project.yml` の `DEVELOPMENT_TEAM` にはメンテナの Team ID（`94HVVWXLK3`）が設定されている。
+**フォークして自分でビルド・提出する場合は、自分の Team ID に置き換える**（Developer サイト →
+Membership の Team ID・10 桁）。`project.yml` を直接編集する（生成される `.xcodeproj` は毎回上書きされるため）:
 
 ```yaml
 # ios/project.yml
 settings:
   base:
-    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID
+    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID に置き換える
 ```
 
-> Team ID をリポジトリに commit したくない場合は、`xcodebuild` の引数
-> `DEVELOPMENT_TEAM=XXXXXXXXXX` で毎回渡してもよい（下の手順はこの方式）。
+> `project.yml` を書き換えずに渡したい場合は、`xcodebuild` の引数
+> `DEVELOPMENT_TEAM=XXXXXXXXXX` で毎回渡してもよい（下の手順はこの方式）。Team ID は秘密情報ではない
+> （配布アプリの署名に含まれる公開識別子）が、フォーク時は自分のものを使う。
 
 ### App Store Connect API キー（CLI アップロード用）
 

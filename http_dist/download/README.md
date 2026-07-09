@@ -10,7 +10,8 @@ DMG をここへ **安定名で** 配置する:
 
 ## 配布フロー(git 管理下 → GitHub Pages)
 
-本リポジトリは **非公開**のため GitHub Releases は使わず、**この 2 ファイルを git に commit** して配布する。
+GitHub Pages はリポジトリのツリーから配信するため、**この 2 ファイルを git に commit** して配布する
+(public リポジトリでは GitHub Releases に添付する方式も選べる。詳細は `docs/RELEASE.md`)。
 
 1. 証明書のある Mac で `./build.sh --dist`(要 `YOUYAKU_NOTARY_PROFILE`)を実行 → ここに DMG と version.txt が置かれる。
 2. `git add http_dist/download/Youyaku.dmg http_dist/download/version.txt && git commit && git push`
