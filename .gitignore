@@ -15,8 +15,6 @@ Vendor/
 # iOS ビルド成果物 / 生成プロジェクト
 ios/build/
 ios/Youyaku.xcodeproj/
-# App Store 提出用オプション(個人の Team ID を含む。テンプレートは *.example を commit)
-ios/ExportOptions.plist
 # App Store Connect API キー(絶対に commit しない)
 *.p8
 

@@ -1,12 +1,15 @@
 # Youyaku iOS 版 App Store 提出 手順書
 
+> **メンテナ向けドキュメント。** リリース担当者が iOS 版を App Store に提出するための手順です。
+> 開発・ビルドだけが目的なら [ios/README.md](../ios/README.md) を参照してください。
+
 iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の直販手順は [RELEASE.md](RELEASE.md) を参照。
 
 - **Bundle ID**: `com.hinoshiba.youyaku`（macOS 版と統一。iOS/macOS で同一 ID）
 - **配布**: App Store（macOS 版は直販 DMG。iOS だけがストア配布）
 - **対応端末**: iPhone + iPad（`TARGETED_DEVICE_FAMILY: "1,2"`）
 - **最低 OS**: iOS 17.0
-- **プロジェクト生成**: [XcodeGen](https://github.com/yonsm/XcodeGen)（`ios/project.yml` → `Youyaku.xcodeproj`）
+- **プロジェクト生成**: [XcodeGen](https://github.com/yonaskolb/XcodeGen)（`ios/project.yml` → `Youyaku.xcodeproj`）
 
 > `ios/build.sh` は**シミュレータ動作確認用**（Debug・署名なし）。App Store 提出は本書の手順で行う。
 
@@ -19,7 +22,7 @@ iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の�
 ```bash
 # XcodeGen（未導入なら）
 brew install xcodegen
-# Xcode 本体（App Store 版 Xcode 15.3 以降を推奨）と Command Line Tools
+# Xcode 本体（App Store 版 Xcode 16 以降を推奨）と Command Line Tools
 xcode-select -p                       # /Applications/Xcode.app/Contents/Developer になっていること
 sudo xcodebuild -license accept
 ```
@@ -42,25 +45,18 @@ sudo xcodebuild -license accept
 
 ### 署名の Team ID を設定
 
-`ios/project.yml` の `DEVELOPMENT_TEAM` が空なので、自分の Team ID を設定する（Developer サイト →
-Membership の Team ID・10 桁）。**`project.yml` を直接編集する**（生成される `.xcodeproj` は毎回上書きされるため）:
+`ios/project.yml` の `DEVELOPMENT_TEAM` にはメンテナの Team ID（`94HVVWXLK3`）が設定されている。
+**フォークして自分でビルド・提出する場合は、自分の Team ID に置き換える**（Developer サイト →
+Membership の Team ID・10 桁）。`project.yml` を直接編集する（生成される `.xcodeproj` は毎回上書きされるため）:
 
 ```yaml
 # ios/project.yml
 settings:
   base:
-    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID
+    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID に置き換える
 ```
 
-> Team ID をリポジトリに commit したくない場合は、`xcodebuild` の引数
-> `DEVELOPMENT_TEAM=XXXXXXXXXX` で毎回渡してもよい（下の手順はこの方式）。
-
-### App Store Connect API キー（CLI アップロード用）
-
-コマンドラインからアップロードする場合に必要（Xcode GUI を使うなら不要）。
-App Store Connect → Users and Access → Integrations → App Store Connect API → ＋ で
-**キーを作成**し、`AuthKey_XXXXXXXXXX.p8` をダウンロードする（再ダウンロード不可・**commit 厳禁**、
-`.gitignore` 済み）。あわせて **Key ID** と **Issuer ID** を控える。
+> Team ID は秘密情報ではない（配布アプリの署名に含まれる公開識別子）。
 
 ---
 
@@ -79,9 +75,7 @@ App Store Connect → Users and Access → Integrations → App Store Connect AP
 
 ---
 
-## 2. アーカイブとアップロード
-
-### 方法 A: Xcode GUI（推奨・初回はこちらが確実）
+## 2. アーカイブとアップロード（Xcode）
 
 ```bash
 cd ios
@@ -93,46 +87,7 @@ open Youyaku.xcodeproj
 2. **Product → Archive**。
 3. Organizer が開いたら **Distribute App → App Store Connect → Upload** を選び、案内に従う
    （自動署名なら証明書・プロファイルは Xcode が用意する）。
-
-### 方法 B: コマンドライン（CI・再現性重視）
-
-```bash
-cd ios
-xcodegen generate
-
-# 1) アーカイブ（実機向け Release）
-xcodebuild \
-  -project Youyaku.xcodeproj \
-  -scheme Youyaku \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath build/Youyaku.xcarchive \
-  -allowProvisioningUpdates \
-  DEVELOPMENT_TEAM=XXXXXXXXXX \
-  archive
-
-# 2) エクスポート & アップロード
-cp ExportOptions.plist.example ExportOptions.plist    # 初回だけ。teamID を自分の値に編集
-xcodebuild -exportArchive \
-  -archivePath build/Youyaku.xcarchive \
-  -exportOptionsPlist ExportOptions.plist \
-  -exportPath build/export \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$HOME/keys/AuthKey_XXXXXXXXXX.p8" \
-  -authenticationKeyID XXXXXXXXXX \
-  -authenticationKeyIssuerID xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-`ExportOptions.plist` の `destination` が `upload` なら、この 2) の完了時に App Store Connect へ
-アップロードされる。`export` にした場合は `build/export/Youyaku.ipa` が出るので、
-**Transporter**アプリ（Mac App Store で無料）または以下でアップロードする:
-
-```bash
-xcrun altool --upload-app -f build/export/Youyaku.ipa -t ios \
-  --apiKey XXXXXXXXXX --apiIssuer xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-アップロード後、App Store Connect で処理が終わると（数分〜十数分）、対象ビルドが選択可能になる。
+4. アップロード後、App Store Connect で処理が終わると（数分〜十数分）、対象ビルドが選択可能になる。
 
 ---
 
@@ -329,4 +284,4 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 - App Store Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
 - App Privacy Details: https://developer.apple.com/app-store/app-privacy-details/
-- Uploading apps (Xcode / altool / Transporter): https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
+- Uploading apps (Xcode Organizer / Transporter): https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases

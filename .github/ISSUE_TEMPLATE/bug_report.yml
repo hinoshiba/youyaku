@@ -1,0 +1,95 @@
+name: バグ報告 / Bug report
+description: 不具合を報告する / Report a problem
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。投稿の前に、まず既存の Issue（Open / Closed）を検索して重複がないか確認してください。
+        **セキュリティ上の脆弱性は Issue に書かないでください** — [SECURITY.md](https://github.com/hinoshiba/youyaku/blob/main/SECURITY.md) の手順で非公開に報告してください。
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 事前確認
+      options:
+        - label: 既存の Issue（Open / Closed）を検索し、重複がないことを確認した
+          required: true
+        - label: できる範囲で最新版で再現することを確認した
+          required: false
+        - label: これはセキュリティ脆弱性の報告ではない（脆弱性は SECURITY.md へ）
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: 不具合の概要
+      description: 何が起きたかを簡潔に
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する挙動
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の挙動
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: プラットフォーム
+      options:
+        - macOS
+        - iOS (iPhone)
+        - iPadOS (iPad)
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS バージョン
+      placeholder: 例) macOS 14.5 / iOS 17.5
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: Youyaku のバージョン
+      description: 設定画面、または DMG / App Store のバージョン表記
+      placeholder: 例) 0.0.3
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: 端末 / チップ
+      placeholder: 例) MacBook Air (M2) / Intel Mac / iPhone 15 / iPad Pro 13-inch (M4)
+    validations:
+      required: false
+  - type: input
+    id: model
+    attributes:
+      label: 使用していたモデル・推論エンジン
+      placeholder: 例) Qwen3 4B（内蔵エンジン）/ Ollama 連携
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・スクリーンショット
+      description: あれば添付してください。個人情報や機微な内容は必ず伏せてください。
+    validations:
+      required: false

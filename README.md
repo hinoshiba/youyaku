@@ -24,6 +24,13 @@ Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命�
 - macOS 14 (Sonoma) 以降 / Intel 対応(推論は Metal GPU が使える Apple Silicon 推奨)
 - メモリ 8GB 以上(4B モデル使用時。ELYZA 8B は 16GB 推奨)
 
+## ダウンロード
+
+- **Mac 版**: [youyaku.hinoshiba.com](https://youyaku.hinoshiba.com/) から公証済み DMG をダウンロード(Developer ID 署名 + 公証済み)。
+- **iPhone / iPad 版**: App Store で公開予定。
+
+ソースからビルドする場合は以下を参照してください。
+
 ## ビルド
 
 ```bash
@@ -33,7 +40,7 @@ open dist/Youyaku.app
 ./build.sh --dist   # 配布用: Developer ID 署名 + 公証 + DMG 生成(要 Apple Developer Program)
 ```
 
-Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は [docs/RELEASE.md](docs/RELEASE.md) を参照。
+Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は、メンテナ向けに [docs/RELEASE.md](docs/RELEASE.md) にまとめています。
 
 `build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)と、アプリ内アップデート用の Sparkle(sparkle-project, 2.9.4, 約 11MB)を `Vendor/` にダウンロードします。どちらもリリースタグと SHA-256 でピン留めしており、再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
 
@@ -62,6 +69,7 @@ Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公�
 Sources/Youyaku/
 ├── YouyakuApp.swift          # エントリポイント(MenuBarExtra)
 ├── AppState.swift        # セッション状態機械(録音→整形→確定)
+├── Models/               # 設定・履歴の永続化(Settings.swift / HistoryStore.swift)
 ├── Speech/               # AVAudioEngine + SFSpeechRecognizer(オンデバイス)
 ├── LLM/
 │   ├── LlamaEngine.swift    # 内蔵 llama.cpp エンジン(Metal 推論・チャットテンプレート)
@@ -90,3 +98,24 @@ Sources/Youyaku/
   - アプリ内アップデート(macOS): 利用者が「アップデート」を選んだときだけ GitHub Releases から DMG を取得して適用(Sparkle。同意なしに更新は入らない)
 - 履歴・設定・モデルはすべて `~/Library/Application Support/Youyaku/` に保存され、ユーザーが削除可能
 - 詳細は配布サイトのプライバシーポリシー([http_dist/privacy.html](http_dist/privacy.html))を参照
+
+## iOS 版
+
+iPhone / iPad 版のソースは [`ios/`](ios/) にあります。コアロジック(設定・履歴・LLM エンジン・整形・モデル管理・音声認識)は macOS 版と共有し、UI のみ iOS 向けに実装しています。ビルド方法は [ios/README.md](ios/README.md) を参照。
+
+## 貢献
+
+Issue・Pull Request を歓迎します。まず [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
+
+- バグ報告・機能リクエストは Issue テンプレートに沿ってお願いします。
+- セキュリティ上の脆弱性は公開 Issue に書かず、[SECURITY.md](SECURITY.md) の手順で非公開に報告してください。
+- 参加者は [行動規範](CODE_OF_CONDUCT.md) に従ってください。
+
+リリース(署名・公証・App Store 提出)の手順は、メンテナ向けに [docs/RELEASE.md](docs/RELEASE.md) / [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md) にまとめています。
+
+## ライセンス
+
+[MIT License](LICENSE) © 2026 hinoshiba
+
+- 同梱する推論エンジン [llama.cpp](https://github.com/ggml-org/llama.cpp)(MIT)ほか、第三者ライセンスは [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) を参照。
+- モデル(GGUF)は各配布元のライセンスに従って利用してください(重みはアプリに同梱せず、利用者がダウンロードします)。

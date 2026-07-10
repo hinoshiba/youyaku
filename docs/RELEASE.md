@@ -1,5 +1,8 @@
 # Youyaku 配布・署名・公証 手順書(macOS)
 
+> **メンテナ向けドキュメント。** リリース担当者が macOS 版を Developer ID 直販で配布するための手順です。
+> アプリのビルドや開発だけが目的なら [README](../README.md) と [CONTRIBUTING](../CONTRIBUTING.md) で十分です。
+
 macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布するための手順書。
 `build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple → 更新フィード(appcast.xml)生成**
 までが自動で走る。DMG 本体は `Scripts/publish-release.sh` で **GitHub Releases** へ公開する。
@@ -141,9 +144,9 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
    `http_dist/download/version.txt` を書き出す。
    - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合は**スキップ**する（配布不可の DMG 向けのフィードを作らないため）。
    - appcast の `enclosure` は `https://github.com/hinoshiba/youyaku/releases/download/v<version>/Youyaku.dmg` を指す。
-     **この時点ではまだアセットは存在しない**（次節の `publish-release.sh` で上げる）。
+     - **この時点ではまだアセットは存在しない**（次節の `publish-release.sh` で上げる）。
+     - DMG 本体の公開は `Scripts/publish-release.sh` が行う（`gh release create/upload`）。
 
-DMG 本体の公開は `Scripts/publish-release.sh` が行う（`gh release create/upload`）。
 
 ### エンタイトルメント（`Youyaku.entitlements`）
 
@@ -186,8 +189,7 @@ DMG 本体の公開は `Scripts/publish-release.sh` が行う（`gh release crea
 
 ### 初回セットアップ（一度だけ）
 
-1. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
-   **「GitHub Actions」** にする。（リポジトリが非公開のあいだは Pages の公開に **GitHub Pro 以上**が必要。）
+1. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を **「GitHub Actions」** にする。
 2. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
    hinoshiba.com を管理している場合）に **CNAME レコード** `youyaku` → `<ユーザー名>.github.io` を
    **「DNS only（グレーの雲）」** で作成する（オレンジの雲＝プロキシ ON だと GitHub の DNS 検証と
@@ -342,5 +344,4 @@ xcrun stapler validate dist/Youyaku-*.dmg
 
 ## 関連
 
-- 販売（有料アプリ / アプリ内課金）を行う場合の **特定商取引法の表記・氏名/住所プライバシー** はメモリ（`youyaku-release-monetization-legal`）に整理済み。無料配布 + 寄付のみなら特商法は非適用。
 - 署名周り（TCC 永続化用のローカル自己署名証明書）は `Scripts/setup-signing.sh` を参照。
