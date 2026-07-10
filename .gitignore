@@ -20,10 +20,13 @@ ios/ExportOptions.plist
 # App Store Connect API キー(絶対に commit しない)
 *.p8
 
-# 配布用 DMG / version.txt は git 管理下に置く(手動 commit)。
-#   非公開リポジトリのため GitHub Releases は使わず、公証済み DMG をリポジトリに含めて
-#   GitHub Actions が GitHub Pages へサイトごとデプロイする。詳細は docs/RELEASE.md。
-#   → ここでは無視しない(あえて .gitignore に列挙しない)
+# 配布用 DMG は GitHub Releases に置くため commit しない(履歴が版ごとに数 MiB 太るため)。
+#   Scripts/publish-release.sh がアップロードする。詳細は docs/RELEASE.md。
+#   一方 appcast.xml / version.txt は GitHub Pages で配信する小さなテキストなので git 管理下に置く。
+http_dist/download/*.dmg
+
+# Sparkle の秘密鍵の書き出し(バックアップ用に一時的に作ることがある。絶対に commit しない)
+sparkle-private-key*.txt
 
 # ローカル環境変数
 .env*

@@ -1,5 +1,7 @@
 #!/bin/zsh
-# 署名済み Youyaku.app から配布用 DMG を作成し、可能なら公証(notarize)+staple する。
+# 署名済み Youyaku.app から配布用 DMG を作成し、可能なら公証(notarize)+staple したうえで、
+# Sparkle の更新フィード(http_dist/download/appcast.xml)を生成する。
+# DMG の実体は GitHub Releases に置くため、ここでは配置しない(→ Scripts/publish-release.sh)。
 #
 #   使い方: ./Scripts/make-dmg.sh [dist/Youyaku.app]
 #   通常は ./build.sh --dist から自動で呼ばれる。
@@ -25,6 +27,8 @@ if [ ! -d "$APP" ]; then
 fi
 
 APP_NAME="Youyaku"
+# DMG を置く GitHub リポジトリ(Releases)。appcast の enclosure URL に埋め込まれる
+GITHUB_REPO="hinoshiba/youyaku"
 # PlistBuddy は読み取り失敗時にエラー文言を stdout に出しうるので、非0終了なら空に倒し、
 # さらに想定外の文字列(空白混じり=エラー文言等)も弾く
 if ! VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null); then
@@ -109,38 +113,91 @@ else
     echo "      2) export YOUYAKU_NOTARY_PROFILE=youyaku-notary && ./build.sh --dist"
 fi
 
-# ---- 5. HP 直販用に http_dist へ配置 ----
-# 公証 + staple 済みの DMG だけを公開ディレクトリへ置く。未公証の DMG は macOS 15 以降で起動できず、
-# 公開してはいけないため、YOUYAKU_NOTARY_PROFILE 未設定時はここをスキップする。
-# ここに置いて commit → push すると GitHub Actions が GitHub Pages へ公開する(docs/RELEASE.md)。
-# 版が変わってもサイトのリンク(/download/Youyaku.dmg)を固定にするため、安定名でコピーする。
+# ---- 5. 更新フィード(appcast.xml)を生成 ----
+# DMG の実体は GitHub Releases に置く(`Scripts/publish-release.sh` がアップロードする)。
+# ここで作るのは Pages に置くフィードだけ。フィード URL(アプリの SUFeedURL)を Pages 側に
+# 固定しておくと、将来 DMG の置き場所を変えてもアプリを作り直さずに追随できる。
+#
+# 未公証の DMG は macOS 15 以降で起動できず配布してはいけないため、公証していないときは
+# フィードも作らない(壊れた更新を利用者へ流さない)。
 PUBLISH_DIR="http_dist/download"
-PUBLISH_DMG="$PUBLISH_DIR/${APP_NAME}.dmg"
-if [ -n "$PROFILE" ]; then
-    # GitHub Pages は 1 ファイル 100 MB がソフト上限。超えると公開できないため、配置前に検査する
-    # (配置してから止めると中途半端な公開物が残るため)。
-    DMG_BYTES=$(stat -f%z "$DMG" 2>/dev/null || echo 0)
-    LIMIT=$((100 * 1024 * 1024))
-    if [ "${DMG_BYTES:-0}" -gt "$LIMIT" ]; then
-        if [ "${YOUYAKU_ALLOW_BIG_DMG:-}" = "1" ]; then
-            echo "!! 警告: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり 100 MB を超えていますが、YOUYAKU_ALLOW_BIG_DMG=1 のため配置を続行します。" >&2
-        else
-            echo "!! エラー: DMG が $((DMG_BYTES / 1024 / 1024)) MiB あり、GitHub Pages の 1 ファイル上限(100 MB)を超えています。" >&2
-            echo "   http_dist への配置を中止しました(公開中の配布物は変更されていません)。対処:" >&2
-            echo "     - DMG を小さくする(不要なアーキテクチャ・デバッグシンボルの除去など)、または" >&2
-            echo "     - 外部の公開ストレージへ移行し、index.html のダウンロードリンクを差し替える(docs/RELEASE.md 参照)" >&2
-            echo "   それでも配置だけ行いたい場合は YOUYAKU_ALLOW_BIG_DMG=1 を設定して再実行してください。" >&2
-            exit 1
-        fi
-    fi
-
-    mkdir -p "$PUBLISH_DIR"
-    cp "$DMG" "$PUBLISH_DMG"
-    printf '%s\n' "$VERSION" > "$PUBLISH_DIR/version.txt"
-    echo "==> HP 配布用に配置: $PUBLISH_DMG (v$VERSION)"
-else
-    echo "==> http_dist への配置はスキップ(未公証の DMG は配布できません)。"
-    echo "    公開用に配置するには YOUYAKU_NOTARY_PROFILE を設定して公証を通してください。"
+if [ -z "$PROFILE" ]; then
+    echo "==> appcast.xml の生成はスキップ(未公証の DMG は配布できません)。"
+    echo "    公開用に生成するには YOUYAKU_NOTARY_PROFILE を設定して公証を通してください。"
+    echo "==> DMG: $DMG"
+    exit 0
 fi
 
+SIGN_UPDATE="Vendor/sparkle-bin/sign_update"
+if [ ! -x "$SIGN_UPDATE" ]; then
+    echo "!! $SIGN_UPDATE がありません。./Scripts/fetch-vendor.sh を実行してください。" >&2
+    exit 1
+fi
+
+# Sparkle は appcast の EdDSA 署名で DMG の真正性を検証する。秘密鍵はキーチェーンにあり、
+# 対応する公開鍵は Info.plist の SUPublicEDKey に埋め込まれている(Scripts/setup-sparkle-keys.sh)。
+# 署名を http_dist の更新より先に取る: 失敗したときに中途半端なフィードを残さないため。
+echo "==> DMG に EdDSA 署名(Sparkle)"
+if ! SIGNATURE=$("$SIGN_UPDATE" "$DMG"); then
+    echo "!! sign_update に失敗しました。署名鍵が無い可能性があります。" >&2
+    echo "   初回のみ ./Scripts/setup-sparkle-keys.sh を実行して鍵を作成してください。" >&2
+    exit 1
+fi
+# 出力は `sparkle:edSignature="..." length="..."` の 1 行。想定外なら空の enclosure を作らず止める
+case "$SIGNATURE" in
+    *'sparkle:edSignature="'*'length="'*) ;;
+    *)
+        echo "!! sign_update の出力を解釈できませんでした: $SIGNATURE" >&2
+        exit 1
+        ;;
+esac
+
+BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$APP/Contents/Info.plist")
+PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
+
+# タグ v<version> の下に安定名 Youyaku.dmg でアップロードする(Scripts/publish-release.sh)。
+# タグが版を分けるのでファイル名は固定でよく、サイト側は
+# /releases/latest/download/Youyaku.dmg という版に依らないリンクを使える。
+ENCLOSURE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/${APP_NAME}.dmg"
+
+# リリースノート(任意)。置いてあればアップデート画面に表示される
+NOTES_TAG=""
+if [ -f "$PUBLISH_DIR/notes/${VERSION}.html" ]; then
+    NOTES_TAG="      <sparkle:releaseNotesLink>https://youyaku.hinoshiba.com/download/notes/${VERSION}.html</sparkle:releaseNotesLink>"
+fi
+
+mkdir -p "$PUBLISH_DIR"
+cat > "$PUBLISH_DIR/appcast.xml" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scripts/make-dmg.sh が生成する。手で編集しない -->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Youyaku</title>
+    <link>https://youyaku.hinoshiba.com/download/appcast.xml</link>
+    <description>Youyaku (macOS) の更新フィード</description>
+    <language>ja</language>
+    <item>
+      <title>${VERSION}</title>
+      <pubDate>${PUB_DATE}</pubDate>
+      <sparkle:version>${BUILD}</sparkle:version>
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+${NOTES_TAG}
+      <enclosure url="${ENCLOSURE_URL}" type="application/octet-stream" ${SIGNATURE} />
+    </item>
+  </channel>
+</rss>
+EOF
+# NOTES_TAG が空のときに残る空行を落とす(フィードの見た目を保つだけで、動作には影響しない)
+sed -i '' '/^$/d' "$PUBLISH_DIR/appcast.xml"
+
+printf '%s\n' "$VERSION" > "$PUBLISH_DIR/version.txt"
+echo "==> 更新フィードを生成: $PUBLISH_DIR/appcast.xml (v$VERSION → $ENCLOSURE_URL)"
+
 echo "==> DMG: $DMG"
+echo
+echo "次の手順(docs/RELEASE.md「リリースごとの手順」):"
+echo "  1) ./Scripts/publish-release.sh          … GitHub Releases に DMG を上げる"
+echo "  2) git add http_dist/download/appcast.xml http_dist/download/version.txt Info.plist ios/project.yml"
+echo "     git commit && git push               … Pages にフィードを反映"

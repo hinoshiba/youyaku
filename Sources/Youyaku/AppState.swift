@@ -35,10 +35,9 @@ final class AppState: ObservableObject {
     let llamaEngine = LlamaEngine.shared
     lazy var ollama = OllamaClient(settings: settings)
     lazy var hud = HUDController(appState: self)
-    // 直販版の更新通知(youyaku.hinoshiba.com の version.txt を1日1回取得。設定でオフ可能)
-    lazy var updateChecker = UpdateChecker(isEnabled: { [weak self] in
-        self?.settings.value.checkForUpdates ?? false
-    })
+    // 直販版のアプリ内アップデート(Sparkle。youyaku.hinoshiba.com の appcast.xml を
+    // 1日1回取得し、更新はアプリ内で完結する。設定でオフ可能)
+    lazy var updater = Updater(automaticallyChecks: settings.value.checkForUpdates)
 
     private var refineTask: Task<Void, Never>?
     private var dismissWork: DispatchWorkItem?
@@ -59,7 +58,7 @@ final class AppState: ObservableObject {
             speech.objectWillChange.eraseToAnyPublisher(),
             ollama.objectWillChange.eraseToAnyPublisher(),
             modelStore.objectWillChange.eraseToAnyPublisher(),
-            updateChecker.objectWillChange.eraseToAnyPublisher(),
+            updater.objectWillChange.eraseToAnyPublisher(),
         ] {
             publisher
                 .receive(on: RunLoop.main)

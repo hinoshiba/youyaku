@@ -35,7 +35,7 @@ open dist/Youyaku.app
 
 Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は [docs/RELEASE.md](docs/RELEASE.md) を参照。
 
-`build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)を `Vendor/` にダウンロードします。この xcframework は再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
+`build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)と、アプリ内アップデート用の Sparkle(sparkle-project, 2.9.4, 約 11MB)を `Vendor/` にダウンロードします。どちらもリリースタグと SHA-256 でピン留めしており、再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
 
 ## 初回セットアップ
 
@@ -86,6 +86,7 @@ Sources/Youyaku/
 - 外部通信の全経路は以下のみ。テレメトリ・分析・広告 SDK は一切なし
   - モデルのダウンロード時: Hugging Face へ接続(IP アドレス・User-Agent 等が同社に送信される)
   - Ollama 連携(任意設定): 有効にすると設定先ホストへ整形対象テキストを送信(既定はローカル 127.0.0.1。外部ホストも指定可)
-  - 更新チェック: youyaku.hinoshiba.com からバージョン番号のみを1日1回取得(設定でオフ可)
+  - 更新チェック(macOS): youyaku.hinoshiba.com から更新情報(appcast.xml)のみを1日1回取得(設定でオフ可)
+  - アプリ内アップデート(macOS): 利用者が「アップデート」を選んだときだけ GitHub Releases から DMG を取得して適用(Sparkle。同意なしに更新は入らない)
 - 履歴・設定・モデルはすべて `~/Library/Application Support/Youyaku/` に保存され、ユーザーが削除可能
 - 詳細は配布サイトのプライバシーポリシー([http_dist/privacy.html](http_dist/privacy.html))を参照

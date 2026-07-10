@@ -6,7 +6,7 @@ struct MenuBarView: View {
     var body: some View {
         VStack(spacing: 12) {
             header
-            if let version = app.updateChecker.availableVersion {
+            if let version = app.updater.availableVersion {
                 updateRow(version)
             }
             recordButton
@@ -20,18 +20,18 @@ struct MenuBarView: View {
         .frame(width: 340)
     }
 
-    // 新バージョンの案内(クリックでダウンロードページを開く)
+    // 新バージョンの案内(クリックでアプリ内アップデートを開始する)
     private func updateRow(_ version: String) -> some View {
         Button {
-            NSWorkspace.shared.open(UpdateChecker.downloadPageURL)
+            app.updater.checkForUpdates()
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.down.circle.fill")
                     .foregroundStyle(Brand.primary)
-                Text(tr("新しいバージョン v\(version) があります", "Version \(version) is available"))
+                Text(tr("v\(version) にアップデート", "Update to \(version)"))
                     .font(.system(size: 11, weight: .medium))
                 Spacer()
-                Image(systemName: "arrow.up.forward")
+                Image(systemName: "chevron.right")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
@@ -43,7 +43,7 @@ struct MenuBarView: View {
             )
         }
         .buttonStyle(.plain)
-        .help(tr("ダウンロードページを開く", "Open Download Page"))
+        .help(tr("アプリ内でアップデートする", "Update within the app"))
     }
 
     private var header: some View {

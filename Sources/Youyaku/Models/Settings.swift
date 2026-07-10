@@ -160,8 +160,8 @@ struct AppSettings: Codable {
     var instantPaste = false     // 整形完了後に確認なしで貼り付け
     var sounds = true
 
-    // 更新チェック(macOS 直販版)。youyaku.hinoshiba.com の version.txt を取得して
-    // 新バージョンを通知する。通信はバージョン文字列の取得のみ(設定でオフ可能)
+    // 更新チェック(macOS 直販版)。youyaku.hinoshiba.com の appcast.xml を1日1回取得して
+    // 新バージョンを通知する。ダウンロード・インストールは毎回利用者の確認を経る(設定でオフ可能)
     var checkForUpdates = true
 
     var vocabularyList: [String] {

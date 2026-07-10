@@ -15,6 +15,9 @@ enum Licenses {
         This app includes llama.cpp / ggml (MIT License,
         Copyright (c) 2023-2026 The ggml authors).
 
+        The macOS app includes Sparkle (MIT License,
+        Copyright (c) 2006-2013 Andy Matuschak and contributors).
+
         Language models are downloaded by the user from Hugging Face and are
         governed by their own licenses: Qwen3 (Apache-2.0), ELYZA JP 8B
         (Built with Meta Llama 3), Llama 3.2 (Built with Llama),

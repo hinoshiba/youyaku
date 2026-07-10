@@ -1,7 +1,8 @@
 # Youyaku 配布・署名・公証 手順書(macOS)
 
 macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布するための手順書。
-`build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple** までが自動で走る。
+`build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple → 更新フィード(appcast.xml)生成**
+までが自動で走る。DMG 本体は `Scripts/publish-release.sh` で **GitHub Releases** へ公開する。
 
 ## なぜ Mac App Store ではなく直販なのか
 
@@ -45,6 +46,33 @@ xcrun notarytool store-credentials youyaku-notary \
     --password  <App用パスワード>
 ```
 
+### 4. Sparkle（アプリ内アップデート）の署名鍵を作成
+
+アプリは、更新用 DMG が **自分たちの鍵で署名されたもの** であることを EdDSA 署名で検証してから適用する。
+その鍵ペアを一度だけ作る。
+
+```bash
+./Scripts/setup-sparkle-keys.sh
+```
+
+- 秘密鍵は **ログインキーチェーン**に保存される（リポジトリには入らない）。
+- 表示された公開鍵を `Info.plist` の `SUPublicEDKey` に反映する:
+  `/usr/libexec/PlistBuddy -c "Set :SUPublicEDKey <公開鍵>" Info.plist`
+- 未設定（プレースホルダのまま）だと、`build.sh --dist` は**エラーで停止**し、開発ビルドのアプリは
+  更新機構を起動しない（鍵が無ければ検証に必ず失敗するため、通信もせず黙って無効化する）。
+
+> **★ 秘密鍵は必ずバックアップする。** 失うと既存の利用者へアップデートを配れなくなる
+> （公開鍵を変えた新版を配っても、旧版のアプリはそれを検証できない）。
+> 書き出し: `Vendor/sparkle-bin/generate_keys -x sparkle-private-key.txt`（安全な場所へ移してから削除）
+
+### 5. GitHub CLI（`gh`）を用意
+
+`Scripts/publish-release.sh` が DMG を GitHub Releases へアップロードするのに使う。
+
+```bash
+brew install gh && gh auth login
+```
+
 ---
 
 ## ビルド
@@ -57,7 +85,8 @@ xcrun notarytool store-credentials youyaku-notary \
 
 - ルート `Info.plist` の `CFBundleShortVersionString` を書き換え、`CFBundleVersion` を +1 する。
 - `ios/project.yml` の `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` も同じ値に同期する（macOS / iOS で版数がズレるのを防ぐ）。
-- DMG のファイル名やサイトの `version.txt`、アプリ内の更新チェックはこの値を参照するため、**ビルド前に必ず実行**する。
+- DMG のファイル名、リリースタグ `v<version>`、サイトの `version.txt`、`appcast.xml` の版数は
+  すべてこの値を参照するため、**ビルド前に必ず実行**する。
 
 ### 開発ビルド（手元での動作確認用）
 
@@ -91,21 +120,30 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 
 `build.sh --dist` → `Scripts/make-dmg.sh` の流れ:
 
+0. **Sparkle 公開鍵の確認**：`Info.plist` の `SUPublicEDKey` が未設定なら即エラー
+   （長いビルドと公証を走らせてから、更新機構の死んだ配布物ができあがるのを防ぐ）。
 1. **Swift ビルド**（universal: `swift build -c release --arch arm64 --arch x86_64`）してアプリバンドルを組み立て、
-   `lipo -archs` で両アーキテクチャを検証し、`llama.framework` を埋め込む。
-2. **inside-out 署名**（埋め込みフレームワーク → アプリ本体の順）。いずれも:
+   `lipo -archs` で両アーキテクチャを検証し、`llama.framework` と `Sparkle.framework` を埋め込む。
+   Sparkle の `XPCServices` は App Sandbox 下のアプリ専用なので取り除く。
+2. **inside-out 署名**（フレームワーク内の実行ファイル → フレームワーク → アプリ本体の順）。いずれも:
    - `--options runtime`（Hardened Runtime。公証の必須要件）
    - `--timestamp`（セキュアタイムスタンプ。公証の必須要件・証明書失効後も検証可）
    - アプリ本体に `--entitlements Youyaku.entitlements` を適用
+   - `Sparkle.framework` は中に実行ファイル（`Autoupdate`）とアプリ（`Updater.app`）を抱えているため、
+     **先にそれらを署名しないと**フレームワークの署名が壊れ、公証も通らない。
 3. **署名検証** + **rpath 検証**（`@executable_path/../Frameworks` が無いと起動時に dyld で落ちるため）。
 4. **アプリ本体を公証 + staple**（`ditto` で zip 化 → `notarytool submit --wait` → `stapler staple`）。
    DMG 封入前にアプリ自身へチケットを焼き込むことで、**DMG から取り出した後もオフラインで Gatekeeper を通せる**。
 5. **DMG 生成**（staple 済みアプリ + `/Applications` シンボリックリンク）。
 6. **DMG 署名**（Developer ID + タイムスタンプ）。
 7. **DMG を公証 + staple**、`stapler validate` で検証。
-8. **HP 配布用に配置**：公証済み DMG を `http_dist/download/Youyaku.dmg`（安定名）にコピーし、`http_dist/download/version.txt` にバージョンを書き出す。トップページのダウンロードボタン（`/download/Youyaku.dmg`）がこれを配信する。
-   - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合はこの配置を**スキップ**する（配布不可の DMG を公開しないため）。
-   - `http_dist/download/*.dmg` と `version.txt` は **git 管理下**（非公開リポのため。手動 commit）。commit → push で GitHub Actions が GitHub Pages へ公開する（後述「サイト公開」）。
+8. **更新フィードを生成**：`sign_update` で DMG に EdDSA 署名を付け、`http_dist/download/appcast.xml` と
+   `http_dist/download/version.txt` を書き出す。
+   - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合は**スキップ**する（配布不可の DMG 向けのフィードを作らないため）。
+   - appcast の `enclosure` は `https://github.com/hinoshiba/youyaku/releases/download/v<version>/Youyaku.dmg` を指す。
+     **この時点ではまだアセットは存在しない**（次節の `publish-release.sh` で上げる）。
+
+DMG 本体の公開は `Scripts/publish-release.sh` が行う（`gh release create/upload`）。
 
 ### エンタイトルメント（`Youyaku.entitlements`）
 
@@ -124,79 +162,123 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 
 ---
 
-## サイト公開（ダウンロードリンク）
+## 配布物の置き場所
 
-サイトは **`youyaku.hinoshiba.com`**（**GitHub Pages**）で配信する。macOS 版のダウンロード導線は
-トップページ（`http_dist/index.html`）の「Mac版をダウンロード」ボタン（`/download/Youyaku.dmg`）。
-ページ側は `download/version.txt` を読んで配布中のバージョンを表示する。
+| もの | 置き場所 | 理由 |
+|---|---|---|
+| DMG 本体 | **GitHub Releases**（タグ `v<version>` / アセット名 `Youyaku.dmg` 固定） | バイナリを commit するとリリースごとに履歴が数 MiB ずつ太るため |
+| `appcast.xml` / `version.txt` | **GitHub Pages**（`youyaku.hinoshiba.com/download/`） | 小さなテキスト。フィード URL をサイト側に固定しておくと、将来 DMG の置き場所を変えてもアプリを作り直さずに追随できる |
+| サイト本体（HTML） | **GitHub Pages** | 同上 |
 
-deploy は **GitHub Actions**（`.github/workflows/deploy-pages.yml`）で自動化している。
-`main` への push で `http_dist/` 配下（DMG・version.txt を含む）が変わると、`http_dist` を
-Pages のアーティファクトとしてアップロードして公開する。
+- appcast の `enclosure`: `https://github.com/hinoshiba/youyaku/releases/download/v<version>/Youyaku.dmg`
+- サイトのダウンロードボタン: `https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg`
+
+アセット名を版に依らず `Youyaku.dmg` に固定し、タグで版を分けているため、サイトは版に依らない
+`latest` リンクを、appcast は版を固定したリンクを、同じ 1 ファイルに対して使える。
+
+> **⚠ リポジトリが公開されていることが前提。** GitHub Releases のアセットは、非公開リポジトリでは
+> 認証なしにダウンロードできない。非公開のままリリースすると、サイトのダウンロードボタンも
+> アプリ内アップデートも 404 になる。`Scripts/publish-release.sh` はこれを検出してエラーで停止する。
+
+サイトは **`youyaku.hinoshiba.com`**（**GitHub Pages**）で配信する。ページ側は `download/version.txt` を
+読んで配布中のバージョンを表示する。deploy は **GitHub Actions**（`.github/workflows/deploy-pages.yml`）で
+自動化しており、`main` への push で `http_dist/` 配下が変わると Pages へ公開する。
 
 ### 初回セットアップ（一度だけ）
 
-1. **プラン**: 本リポジトリは非公開のため、GitHub Pages の公開には **GitHub Pro 以上**が必要。
-   （無料プランでは private リポジトリの Pages を公開できない。public 化するか Pro にする。）
-2. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
-   **「GitHub Actions」** にする。
-3. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
+1. **Pages ソースを Actions に**: リポジトリ Settings → Pages → Build and deployment → Source を
+   **「GitHub Actions」** にする。（リポジトリが非公開のあいだは Pages の公開に **GitHub Pro 以上**が必要。）
+2. **カスタムドメイン**: `http_dist/CNAME`（`youyaku.hinoshiba.com`）で指定済み。DNS 側（Cloudflare で
    hinoshiba.com を管理している場合）に **CNAME レコード** `youyaku` → `<ユーザー名>.github.io` を
    **「DNS only（グレーの雲）」** で作成する（オレンジの雲＝プロキシ ON だと GitHub の DNS 検証と
    証明書発行に失敗しやすい）。設定後、Settings → Pages で「Enforce HTTPS」を有効化する。
 
 ### リリースごとの手順
 
+**実行順に意味がある**。先に Releases へ DMG を上げ、あとから appcast.xml を push する。
+逆順にすると、Pages にフィードが載ってから DMG がアップされるまでのあいだ、
+「アプリには更新が見えるのにダウンロードは 404」という時間帯ができる。
+
 ```bash
 # 証明書のある Mac で:
 export YOUYAKU_NOTARY_PROFILE=youyaku-notary
-./Scripts/bump-version.sh X.Y.Z   # バージョンを上げる(前述)
-./build.sh --dist                 # → http_dist/download/Youyaku.dmg / version.txt を生成(公証込み)
 
-# 生成物を commit して push すると Actions が自動デプロイする
-git add http_dist/download/Youyaku.dmg http_dist/download/version.txt Info.plist ios/project.yml
+# 1. バージョンを上げ、コードの状態を確定させて push する
+#    （タグはこのコミットに付く。未 push のコミットにはタグを作れない）
+./Scripts/bump-version.sh X.Y.Z
+git add Info.plist ios/project.yml
 git commit -m "リリース vX.Y.Z"
+git push
+
+# 2. ビルド → 公証 → DMG と appcast.xml を生成
+./build.sh --dist
+
+# 3. DMG を GitHub Releases へ公開（タグ vX.Y.Z を作り、Youyaku.dmg を上げる）
+./Scripts/publish-release.sh
+
+# 4. 更新フィードを公開 → 既存利用者のアプリ内アップデートに反映される
+git add http_dist/download/appcast.xml http_dist/download/version.txt
+git commit -m "appcast vX.Y.Z"
 git push
 ```
 
-> **DMG は git 管理下**（本リポジトリは非公開のため GitHub Releases は使わない）。公証済み DMG を
-> commit することで、Actions のチェックアウトに含まれ、Pages アーティファクトに同梱されて公開される。
-> `.gitignore` からは除外済み。同じファイル名で上書き commit すれば最新ツリーは 1 つに保たれる。
-> 公開後は `https://youyaku.hinoshiba.com/download/Youyaku.dmg` からダウンロードできる。
-
-- Mac 版はサイト（`/download/Youyaku.dmg`）から直接ダウンロードさせる。
+- Mac 版はサイトのボタン（→ GitHub Releases）から直接ダウンロードさせる。既存利用者はアプリ内で更新する。
 - iOS は App Store 公開。手順は **[docs/RELEASE-iOS.md](RELEASE-iOS.md)** を参照。
 
-### 身内限定公開について
+> 公開済みの DMG を**差し替えてはいけない**。`appcast.xml` の EdDSA 署名は DMG のバイト列に紐づくため、
+> 差し替えると、既に配ったフィードを持つアプリが検証に失敗する。版を上げて出し直すこと。
+> （`publish-release.sh` は既存アセットの上書きを既定で拒否する。）
+
+### 公開範囲について
 
 GitHub Pages は公開サイトのため、Cloudflare Access のような認証ゲートは使えない
-（Pages の URL を知っていれば誰でもアクセスできる）。身内限定フェーズを厳密に保ちたい場合は、
-サイトのリンクを共有しない運用にとどめるか、認証付きの別ホスティング（Cloudflare Access 配下等）を
-検討する。iOS 審査時は、審査担当がプライバシーポリシー URL・サポート URL に到達できるよう
-サイトが公開されている必要がある。
+（Pages の URL を知っていれば誰でもアクセスできる）。加えて、上記のとおり **Releases 配布は
+リポジトリの公開が前提**。身内限定フェーズを厳密に保ちたい場合は、サイトのリンクを共有しない
+運用にとどめるか、認証付きの別ホスティングと外部ストレージ（R2 の公開バケット等）へ
+`appcast.xml` の `enclosure` と `index.html` のリンクを向け直す。
+iOS 審査時は、審査担当がプライバシーポリシー URL・サポート URL に到達できるようサイトが公開されている必要がある。
+
+---
+
+## アプリ内アップデート（Sparkle）
+
+macOS 版は [Sparkle 2](https://sparkle-project.org/) を埋め込んでおり、更新はアプリ内で完結する
+（ダウンロード → 署名検証 → 入れ替え → 再起動）。
+
+- **フィード**: `Info.plist` の `SUFeedURL` = `https://youyaku.hinoshiba.com/download/appcast.xml`
+- **検証**: DMG の EdDSA 署名（`SUPublicEDKey` と対になる秘密鍵で `sign_update` が署名）に加えて、
+  Sparkle が新旧アプリの Developer ID 署名の一致も確認してから入れ替える。
+- **勝手に入れない**: `SUAllowsAutomaticUpdates=false`。ダウンロードとインストールは毎回利用者が選ぶ。
+- **通知の出しかた**: メニューバー常駐アプリなので、定期チェックで更新ダイアログを前面に出さず、
+  ホーム画面とメニューにバナーを出すだけにしている（Sparkle の "gentle reminders"）。
+  実装は `Sources/Youyaku/Support/Updater.swift`。
+- **設定**: 「アップデートを自動確認」をオフにすると定期チェックの通信ごと止まる。
+
+鍵の作成・バックアップは「前提条件 → 4. Sparkle の署名鍵を作成」を参照。
 
 ### DMG のサイズ上限
 
-GitHub Pages は **1 ファイル 100 MB・サイト全体 1 GB** がソフト上限（大容量バイナリの常時配信は
-推奨用途外だが、数十 MB 級の DMG は実用上問題ない）。現状の内蔵構成（llama.framework の macOS
-スライスは約 12 MiB）では DMG は十分収まる。将来大きくなった場合は、不要なアーキテクチャ・
-デバッグシンボルを削って DMG を小さくするか、外部の公開ストレージ（R2 の公開バケット等）へ
-DMG を移して `http_dist/index.html` のダウンロードリンク 2 か所（ヒーロー・`#download`）と
-JSON-LD の `downloadUrl` をその URL に向ける。
+GitHub Releases のアセットは **1 ファイル 2 GiB** まで。現状の内蔵構成（llama.framework の macOS
+スライスは約 12 MiB、Sparkle.framework は約 5 MiB）では十分に収まる。
+一方 **Pages に置くのは数 KB のテキストだけ**になったので、Pages 側のサイズ上限（1 ファイル 100 MB）は
+もう配布の制約にならない。
 
-## llama.cpp（Vendor）の更新手順
+## Vendor（llama.cpp / Sparkle）の更新手順
 
-`Scripts/fetch-vendor.sh` は取得する `llama.xcframework` を **リリースタグ + SHA-256 でピン留め**している
+`Scripts/fetch-vendor.sh` は取得する xcframework を **リリースタグ + SHA-256 でピン留め**している
 （GitHub のリリース資産は権限者が後から差し替え可能なため、タグ固定だけでは真正性を担保できない）。
-llama.cpp を上げるときは、次の **3 点セット**を必ず揃えて更新する:
+上げるときは、次の **3 点セット**を必ず揃えて更新する:
 
-1. **URL（タグ）**: `LLAMA_VERSION` を新しいリリースタグに変更する。
-2. **SHA-256**: 新しい資産を手元にダウンロードして `shasum -a 256 <zip>` で実測し、`LLAMA_SHA256` を差し替える。
-3. **`.llama-version`**: 展開後に `Vendor/build-apple/.llama-version` へ自動で書き込まれる。
-   スクリプトは「ヘッダが存在し、かつ `.llama-version` が `LLAMA_VERSION` と一致」を取得済みと判定するため、
+1. **URL（タグ）**: `LLAMA_VERSION` / `SPARKLE_VERSION` を新しいリリースタグに変更する。
+2. **SHA-256**: 新しい資産を手元にダウンロードして `shasum -a 256 <zip>` で実測し、
+   `LLAMA_SHA256` / `SPARKLE_SHA256` を差し替える。
+3. **バージョンファイル**: 展開後に `Vendor/build-apple/.llama-version` / `Vendor/.sparkle-version` へ
+   自動で書き込まれる。スクリプトはこれが定数と一致するかで取得済みを判定するため、
    タグを上げれば次回のビルドで自動的に再取得される（手動での削除は不要）。
 
-あわせて `Sources/Youyaku/LLM/LlamaEngine.swift` が使う API との整合を確認すること。
+- llama.cpp: あわせて `Sources/Youyaku/LLM/LlamaEngine.swift` が使う API との整合を確認すること。
+- Sparkle: `Package.swift` のコメントの版数と、`THIRD_PARTY_LICENSES.txt` の帰属表記
+  （`Vendor/sparkle-LICENSE` と突き合わせる）も更新すること。**公開鍵（`SUPublicEDKey`）は変えない**。
 
 ---
 

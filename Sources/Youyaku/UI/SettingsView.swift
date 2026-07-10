@@ -342,12 +342,26 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
 
-            settingRow(tr("アップデートを自動確認", "Check for Updates Automatically"),
-                       help: tr("1日1回、youyaku.hinoshiba.com から最新バージョン番号のみを取得します。それ以外の情報は送信しません。",
-                                "Fetches only the latest version number from youyaku.hinoshiba.com once a day. No other information is sent.")) {
-                Toggle("", isOn: $app.config.checkForUpdates)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
+            if app.updater.isEnabled {
+                settingRow(tr("アップデートを自動確認", "Check for Updates Automatically"),
+                           help: tr("1日1回、youyaku.hinoshiba.com から更新情報を取得します。新版があればお知らせし、アップデートするかどうかは毎回確認します。それ以外の情報は送信しません。",
+                                    "Checks youyaku.hinoshiba.com for updates once a day. You'll be notified when one is available and always asked before it installs. No other information is sent.")) {
+                    Toggle("", isOn: $app.config.checkForUpdates)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .onChange(of: app.config.checkForUpdates) { _, newValue in
+                            app.updater.setAutomaticChecks(newValue)
+                        }
+                }
+
+                settingRow(tr("アップデート", "Update"),
+                           help: tr("新版があれば、ダウンロードから再起動までアプリ内で完了します。",
+                                    "If a new version exists, Youyaku downloads, installs, and relaunches itself.")) {
+                    Button(tr("今すぐ確認", "Check Now")) {
+                        app.updater.checkForUpdates()
+                    }
+                    .controlSize(.small)
+                }
             }
 
             settingRow(tr("Ollama ホスト", "Ollama Host"), help: tr("通常は変更不要です", "Usually doesn't need to be changed")) {
