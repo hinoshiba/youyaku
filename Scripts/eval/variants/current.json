@@ -1,0 +1,6 @@
+[
+  {
+    "id": "baseline",
+    "note": "出荷中の Refiner.prompts(mode: .command) をそのまま呼ぶ"
+  }
+]

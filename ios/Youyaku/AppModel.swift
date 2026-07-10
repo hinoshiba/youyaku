@@ -221,11 +221,12 @@ final class AppModel: ObservableObject {
                 for try await token in stream {
                     try Task.checkCancellation()
                     raw += token
-                    self.refined = Self.visibleText(raw)
+                    self.refined = Sanitizer.visible(raw)
                 }
                 try Task.checkCancellation()
                 guard self.phase == .refining else { return }
-                self.refined = Self.visibleText(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+                // 前置きやラベルの除去は完了後に一度だけ(途中で消すと表示がちらつく)
+                self.refined = Sanitizer.clean(raw)
                 if self.refined.isEmpty {
                     self.refined = self.transcript
                     self.statusMessage = tr("整形結果が空だったため、認識結果をそのまま表示しています", "The refined result was empty, so the raw transcription is shown.")
@@ -342,12 +343,5 @@ final class AppModel: ObservableObject {
             }
         }
         return installed.min { $0.size < $1.size }   // iOS は省メモリ優先で最小を既定に
-    }
-
-    private static func visibleText(_ raw: String) -> String {
-        let trimmed = raw.drop(while: { $0.isWhitespace })
-        guard trimmed.hasPrefix("<think>") else { return raw }
-        guard let range = trimmed.range(of: "</think>") else { return "" }
-        return String(trimmed[range.upperBound...])
     }
 }
