@@ -316,13 +316,13 @@ final class AppState: ObservableObject {
                 for try await token in stream {
                     try Task.checkCancellation()
                     raw += token
-                    self.refined = Self.visibleText(raw)
+                    self.refined = Sanitizer.visible(raw)
                 }
                 // キャンセル済み・セッション終了済みなら結果を適用しない(誤貼り付け防止)
                 try Task.checkCancellation()
                 guard self.phase == .refining else { return }
-                self.refined = Self.visibleText(raw)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                // 前置きやラベルの除去は完了後に一度だけ(途中で消すと表示がちらつく)
+                self.refined = Sanitizer.clean(raw)
                 if self.refined.isEmpty {
                     self.refined = self.transcript
                     self.statusMessage = tr("整形結果が空だったため、認識結果をそのまま表示しています", "The refined result was empty, so the raw transcription is shown.")
@@ -506,12 +506,4 @@ final class AppState: ObservableObject {
         sound.play()
     }
 
-    // qwen3 などの思考モデルが出力する <think> ブロックを隠す。
-    // 閉じタグ前は空文字(HUD はプレースホルダー表示)、閉じたら本文のみ返す
-    private static func visibleText(_ raw: String) -> String {
-        let trimmed = raw.drop(while: { $0.isWhitespace })
-        guard trimmed.hasPrefix("<think>") else { return raw }
-        guard let range = trimmed.range(of: "</think>") else { return "" }
-        return String(trimmed[range.upperBound...])
-    }
 }

@@ -1,0 +1,101 @@
+name: Prompt eval (regression)
+
+# 出荷コード(Refiner / LlamaEngine / Sanitizer)を内蔵カタログのローカル LLM で回し、
+# 書き起こし → 整形の品質がベースラインから下がっていないかを確認する。
+# 詳細は Scripts/eval/README.md。
+#
+# トリガー:
+#   - 当面は手動のみ(workflow_dispatch)。将来 PR で自動化する場合は
+#     下の pull_request ブロックのコメントを外す(paths でプロンプト関連の変更に限定推奨)。
+#
+# モデルは models.json の "ci": true のものだけを 1 モデル 1 ジョブで回す。
+# モデルを増やしても models.json に1行足すだけでマトリクスに乗る(ジョブは増えるが各ジョブは肥大化しない)。
+#
+# 重要 — ベースラインは CI 上で採る:
+#   GitHub の macOS ランナーは GPU(Metal)非対応なので CPU 推論になる(YOUYAKU_GPU_LAYERS=0)。
+#   CPU とローカルの Metal ではトークンが変わるため、しきい値判定に使うベースラインは
+#   必ずこのワークフローを mode=record で1回流して採取し、成果物 (artifact) を
+#   Scripts/eval/ci-baseline/ に commit すること。未記録のモデルは check でも素通りする。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check=ベースラインと比較 / record=ベースラインを採取"
+        type: choice
+        options: [check, record]
+        default: check
+      cases:
+        description: "テストセット (ja_subset=48 / ja=115 / en=20)"
+        type: choice
+        options: [ja_subset, ja, en]
+        default: ja_subset
+  # pull_request:
+  #   paths:
+  #     - "Sources/Youyaku/LLM/**"
+  #     - "Scripts/eval/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # models.json の "ci": true からマトリクスを組む
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.set.outputs.models }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set
+        run: |
+          models=$(python3 -c 'import json;print(json.dumps([m["name"] for m in json.load(open("Scripts/eval/models.json")) if m.get("ci")]))')
+          echo "models=$models" >> "$GITHUB_OUTPUT"
+          echo "CI 対象モデル: $models"
+
+  eval:
+    needs: matrix
+    runs-on: macos-14   # Apple Silicon。GPU は無いので CPU 推論(YOUYAKU_GPU_LAYERS=0)
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ${{ fromJSON(needs.matrix.outputs.models) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: モデルをキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/youyaku-eval/models/${{ matrix.model }}
+          key: gguf-${{ matrix.model }}
+
+      - name: モデルを用意(キャッシュ済みなら SKIP)
+        run: ./Scripts/eval/fetch-models.sh --only "${{ matrix.model }}"
+
+      - name: 評価を実行(CPU 推論)
+        env:
+          YOUYAKU_GPU_LAYERS: "0"
+        run: |
+          ./Scripts/eval/run.sh \
+            --cases "${{ inputs.cases }}" \
+            --model "${{ matrix.model }}" \
+            --out "result.jsonl" \
+            --metrics "metrics.json"
+
+      - name: ベースラインと比較 / 記録
+        run: |
+          python3 Scripts/eval/ci-check.py \
+            --model "${{ matrix.model }}" \
+            --metrics metrics.json \
+            --baseline-dir Scripts/eval/ci-baseline \
+            ${{ inputs.mode == 'record' && '--record' || '' }}
+
+      # record 実行時: 採取したベースラインを成果物として出す。ダウンロードして
+      # Scripts/eval/ci-baseline/ に置き、commit すると次回から check で使われる。
+      - name: ベースラインをアップロード(record 時のみ)
+        if: ${{ inputs.mode == 'record' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-baseline-${{ matrix.model }}
+          path: Scripts/eval/ci-baseline/${{ matrix.model }}.json
+          if-no-files-found: error

@@ -122,7 +122,14 @@ final class LlamaEngine: @unchecked Sendable {
             throw YouyakuError(tr("モデルファイルが見つかりません: \(path)", "Model file not found: \(path)"))
         }
         var params = llama_model_default_params()
-        params.n_gpu_layers = -1 // 全レイヤーを GPU(Metal)へ
+        // 既定は全レイヤーを GPU(Metal)へ。GPU 非搭載環境(CI ランナー等)や
+        // 切り分け用に YOUYAKU_GPU_LAYERS で上書きできる(0 = CPU のみ)。
+        // アプリの通常動作では未設定なので従来どおり -1。
+        if let ov = ProcessInfo.processInfo.environment["YOUYAKU_GPU_LAYERS"], let n = Int32(ov) {
+            params.n_gpu_layers = n
+        } else {
+            params.n_gpu_layers = -1
+        }
         guard let loaded = llama_model_load_from_file(path, params) else {
             throw YouyakuError(tr("モデルの読み込みに失敗しました。ファイルが壊れている可能性があります。", "Failed to load the model. The file may be corrupted."))
         }

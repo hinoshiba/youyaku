@@ -66,6 +66,7 @@ targets:
       - path: ../Sources/Youyaku/Models/HistoryStore.swift
       - path: ../Sources/Youyaku/LLM/LlamaEngine.swift
       - path: ../Sources/Youyaku/LLM/Refiner.swift
+      - path: ../Sources/Youyaku/LLM/Sanitizer.swift
       - path: ../Sources/Youyaku/LLM/BuiltinCatalog.swift
       - path: ../Sources/Youyaku/LLM/ModelStore.swift
       - path: ../Sources/Youyaku/Speech/SpeechRecognizer.swift
