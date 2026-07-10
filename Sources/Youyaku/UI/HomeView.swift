@@ -13,7 +13,7 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if let version = app.updateChecker.availableVersion {
+                if let version = app.updater.availableVersion {
                     updateBanner(version)
                 }
                 if !app.hotkeyActive {
@@ -37,7 +37,7 @@ struct HomeView: View {
 
     // MARK: - バナー
 
-    // 新バージョンの案内(直販版の更新チェック。設定でオフ可能)
+    // 新バージョンの案内(直販版のアプリ内アップデート。設定でオフ可能)
     private func updateBanner(_ version: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "arrow.down.circle.fill")
@@ -46,13 +46,14 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(tr("新しいバージョン v\(version) があります", "Version \(version) is available"))
                     .font(.system(size: 13, weight: .medium))
-                Text(tr("ダウンロードページから最新版を入手できます", "Get the latest version from the download page"))
+                Text(tr("このままアプリ内でアップデートできます(完了後に自動で再起動します)",
+                        "You can update right here; Youyaku restarts when it's done"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button(tr("ダウンロードページを開く", "Open Download Page")) {
-                NSWorkspace.shared.open(UpdateChecker.downloadPageURL)
+            Button(tr("アップデート", "Update")) {
+                app.updater.checkForUpdates()
             }
             .controlSize(.small)
         }

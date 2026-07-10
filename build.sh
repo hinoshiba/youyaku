@@ -10,7 +10,19 @@ if [ "$1" = "--dist" ] || [ "$1" = "dist" ]; then
     MODE="dist"
 fi
 
-echo "==> ベンダー依存(llama.xcframework)を確認"
+# Sparkle(アプリ内アップデート)の公開鍵が入っていない配布物は、更新機構が死んだまま出回る。
+# 長いビルドと公証を走らせる前にここで止める(開発ビルドは鍵なしでも動く。更新機構が無効になるだけ)。
+if [ "$MODE" = "dist" ]; then
+    PUBLIC_ED_KEY=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" Info.plist 2>/dev/null) || PUBLIC_ED_KEY=""
+    if [ -z "$PUBLIC_ED_KEY" ] || [ "$PUBLIC_ED_KEY" = "REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY" ]; then
+        echo "!! Info.plist の SUPublicEDKey が未設定です。アプリ内アップデートの署名検証ができません。" >&2
+        echo "   初回のみ次を実行し、出力された公開鍵で Info.plist の SUPublicEDKey を置き換えてください:" >&2
+        echo "     ./Scripts/setup-sparkle-keys.sh" >&2
+        exit 1
+    fi
+fi
+
+echo "==> ベンダー依存(llama.xcframework / Sparkle.xcframework)を確認"
 ./Scripts/fetch-vendor.sh
 
 echo "==> Swift ビルド"
@@ -27,6 +39,8 @@ fi
 
 APP=dist/Youyaku.app
 FRAMEWORK_SRC=Vendor/build-apple/llama.xcframework/macos-arm64_x86_64/llama.framework
+SPARKLE_SRC=Vendor/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
+SPARKLE_FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
@@ -52,6 +66,13 @@ cp THIRD_PARTY_LICENSES.txt "$APP/Contents/Resources/THIRD_PARTY_LICENSES.txt"
 
 echo "==> llama.framework を埋め込み"
 cp -R "$FRAMEWORK_SRC" "$APP/Contents/Frameworks/"
+
+echo "==> Sparkle.framework を埋め込み"
+cp -R "$SPARKLE_SRC" "$APP/Contents/Frameworks/"
+# XPC サービスは App Sandbox 下のアプリ専用(Sparkle の Sandboxing.md)。本アプリは非サンドボックスなので
+# 同梱しない。残すと署名・公証の対象が増えるだけで、更新時には使われない。
+rm -rf "$SPARKLE_FRAMEWORK/Versions/B/XPCServices" "$SPARKLE_FRAMEWORK/XPCServices"
+
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/Youyaku" 2>/dev/null || true
 
 if [ ! -f dist/AppIcon.icns ]; then
@@ -84,7 +105,15 @@ if [ "$MODE" = "dist" ]; then
         exit 1
     fi
     echo "==> 配布署名(Developer ID + Hardened Runtime): $DIST_ID"
-    # inside-out に署名する(埋め込みフレームワーク → アプリ本体の順)。
+    # inside-out に署名する(埋め込みフレームワークの中の実行ファイル → フレームワーク → アプリ本体の順)。
+    # Sparkle.framework は中に実行ファイル(Autoupdate)とアプリ(Updater.app)を抱えており、
+    # 先にそれらを署名しないとフレームワークの署名が壊れる(公証も通らない)。
+    codesign --force --options runtime --timestamp \
+        --sign "$DIST_ID" "$SPARKLE_FRAMEWORK/Versions/B/Autoupdate"
+    codesign --force --options runtime --timestamp \
+        --sign "$DIST_ID" "$SPARKLE_FRAMEWORK/Versions/B/Updater.app"
+    codesign --force --options runtime --timestamp \
+        --sign "$DIST_ID" "$SPARKLE_FRAMEWORK"
     codesign --force --options runtime --timestamp \
         --sign "$DIST_ID" "$APP/Contents/Frameworks/llama.framework"
     codesign --force --options runtime --timestamp \
@@ -117,6 +146,9 @@ else
         echo "==> 署名: ad-hoc(再ビルドごとにアクセシビリティ許可の再設定が必要)"
         echo "    恒久化するには一度だけ実行: ./Scripts/setup-signing.sh"
     fi
+    codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK/Versions/B/Autoupdate"
+    codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK/Versions/B/Updater.app"
+    codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK"
     codesign --force --sign "$SIGN_ID" "$APP/Contents/Frameworks/llama.framework"
     codesign --force --sign "$SIGN_ID" "$APP"
 fi

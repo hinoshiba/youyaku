@@ -20,7 +20,7 @@
 <meta name="twitter:image" content="https://youyaku.hinoshiba.com/assets/mac-home.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236D5CFF'/%3E%3Cstop offset='1' stop-color='%23B44DFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cg fill='%23fff'%3E%3Crect x='30' y='42' width='6' height='16' rx='3'/%3E%3Crect x='42' y='34' width='6' height='32' rx='3'/%3E%3Crect x='54' y='26' width='6' height='48' rx='3'/%3E%3Crect x='66' y='38' width='6' height='24' rx='3'/%3E%3C/g%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Youyaku","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","downloadUrl":"https://youyaku.hinoshiba.com/download/Youyaku.dmg","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Youyaku","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14+, iOS 17+","description":"話すだけで、ローカルAIが“AIに伝わる指示文”に整えるオンデバイス音声入力アプリ。","downloadUrl":"https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}
 </script>
 <style>
   :root{
@@ -259,6 +259,7 @@
       <a href="#privacy">プライバシー</a>
       <a href="#models">モデル</a>
       <a href="#platforms">対応端末</a>
+      <a href="https://github.com/hinoshiba/youyaku" target="_blank" rel="noopener">ソースコード</a>
     </div>
     <a class="nav-cta" href="#download">ダウンロード</a>
   </div>
@@ -272,7 +273,7 @@
     <p class="sub">話すだけで、<b>ローカルAI</b>が“AIに伝わる指示文”へ整える。<br>声もテキストも、既定設定では端末の外に出ません。</p>
     <p class="op">どのアプリでも <span class="kbd">⌥Space</span>。手を止めず、思考のまま指示できる。</p>
     <div class="cta-row">
-      <a class="btn-primary" href="/download/Youyaku.dmg" download>
+      <a class="btn-primary" href="https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v11m0 0 4.5-4.5M12 14l-4.5-4.5M5 19h14"/></svg>
         Mac版をダウンロード
         <span class="soon">.dmg</span>
@@ -358,7 +359,7 @@
       <div class="card rv">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
         <h3>プライベート設計</h3>
-        <p>音声・文章・モデル、既定ではすべて端末内で処理。テレメトリなし。外部通信は、モデルの取得とアップデート確認（バージョン番号のみ・オフ可）だけです。</p>
+        <p>音声・文章・モデル、既定ではすべて端末内で処理。テレメトリなし。外部通信は、モデルの取得とアップデート（更新確認はオフ可・適用は毎回確認）だけです。</p>
       </div>
       <div class="card rv">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg></div>
@@ -449,7 +450,7 @@
         <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>音声認識はオンデバイス（既定）</b><br><span style="color:var(--muted);font-size:14px">Apple の内蔵エンジンで、既定では音声をネットワークに送りません。</span></div></li>
         <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>LLM推論も端末内</b><br><span style="color:var(--muted);font-size:14px">llama.cpp をアプリに内蔵。API キーもサーバーも不要です。</span></div></li>
         <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>テレメトリなし</b><br><span style="color:var(--muted);font-size:14px">利用状況の収集も外部送信も一切ありません。</span></div></li>
-        <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>外部通信はモデルDLと更新確認のみ</b><br><span style="color:var(--muted);font-size:14px">モデルの取得時と、アップデート確認（バージョン番号のみ・設定でオフ可）だけ。推論はオフラインで動作します。</span></div></li>
+        <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>外部通信はモデルDLとアップデートのみ</b><br><span style="color:var(--muted);font-size:14px">モデルの取得時と、更新確認（設定でオフ可）＋ユーザーが選んだときの更新のダウンロードだけ。推論はオフラインで動作します。</span></div></li>
       </ul>
     </div>
   </div>
@@ -531,7 +532,7 @@
     <h2>声で、AIに<span class="grad-text">指示を</span>。</h2>
     <p>Mac 版は今すぐダウンロード。iPhone / iPad 版は App Store にまもなく登場します。</p>
     <div class="cta-row">
-      <a class="btn-primary" href="/download/Youyaku.dmg" download>
+      <a class="btn-primary" href="https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v11m0 0 4.5-4.5M12 14l-4.5-4.5M5 19h14"/></svg>
         Mac版をダウンロード
         <span class="soon">.dmg</span>
@@ -539,6 +540,7 @@
       <span class="soon-chip">iPhone / iPad 版は近日 App Store へ</span>
     </div>
     <p class="badge-note">macOS 14 以降（Apple Silicon 推奨・Intel 対応） ・ 完全無料 ・ Apple 公証（Notarized）済み</p>
+    <p class="badge-note">ソースコードは <a href="https://github.com/hinoshiba/youyaku" target="_blank" rel="noopener">GitHub</a> で公開しています（MIT License）。インストール後は、アプリ内で最新版へアップデートできます。</p>
     <div class="setup rv">
       <h3>はじめかた</h3>
       <ol>
@@ -563,8 +565,10 @@
       <a href="privacy.html">プライバシーポリシー</a>
       <a href="terms.html">利用規約</a>
       <a href="privacy.html#contact">サポート/お問い合わせ</a>
+      <a href="https://github.com/hinoshiba/youyaku" target="_blank" rel="noopener">GitHub（ソースコード）</a>
+      <a href="https://github.com/hinoshiba/youyaku/releases" target="_blank" rel="noopener">リリース履歴</a>
     </div>
-    <div>© 2026 hinoshiba ・ AIのための音声入力</div>
+    <div>© 2026 hinoshiba ・ AIのための音声入力 ・ <a href="https://github.com/hinoshiba/youyaku/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></div>
   </div>
 </footer>
 

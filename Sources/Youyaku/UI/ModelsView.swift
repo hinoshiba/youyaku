@@ -91,7 +91,7 @@ struct ModelsView: View {
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Label(tr("音声も文章も、既定設定ではすべて Mac の中だけで処理されます。外部通信はモデルのダウンロードとアップデート確認のみです。", "With default settings, your voice and text are processed entirely on your Mac. The only network access is for model downloads and update checks."),
+                Label(tr("音声も文章も、既定設定ではすべて Mac の中だけで処理されます。外部通信はモデルのダウンロードとアップデートのみです。", "With default settings, your voice and text are processed entirely on your Mac. The only network access is for model downloads and updates."),
                       systemImage: "lock.shield")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

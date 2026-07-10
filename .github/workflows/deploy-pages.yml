@@ -1,9 +1,11 @@
 name: Deploy site (GitHub Pages)
 
 # 配布サイト(http_dist)を GitHub Pages へデプロイする。
+# DMG 本体は GitHub Releases にあり、ここで配信するのは HTML と
+# Sparkle の更新フィード(download/appcast.xml)・version.txt だけ。
 #
 # トリガー:
-#   - main への push で http_dist/ 配下(DMG・version.txt を含む)が変わったとき
+#   - main への push で http_dist/ 配下(appcast.xml・version.txt を含む)が変わったとき
 #   - Actions 画面からの手動実行(workflow_dispatch)
 #
 # 事前設定(初回のみ):
@@ -50,11 +52,22 @@ jobs:
           cp -R http_dist/. _site/
           rm -f _site/download/README.md
           touch _site/.nojekyll
-          DMG=_site/download/Youyaku.dmg
-          if [ -f "$DMG" ]; then
-            echo "DMG: $(( $(stat -c%s "$DMG") / 1024 / 1024 )) MiB"
+
+      - name: 更新フィードと配布物の到達性を確認
+        run: |
+          APPCAST=_site/download/appcast.xml
+          if [ ! -f "$APPCAST" ]; then
+            echo "::warning::download/appcast.xml がありません。アプリ内アップデートは動きません(証明書のある Mac で ./build.sh --dist)。"
+            exit 0
+          fi
+          # フィードが指す DMG が実在するか。非公開リポジトリや未アップロードだと 404 になり、
+          # 「更新は見えるのにダウンロードできない」状態でサイトが公開されてしまう。
+          URL=$(grep -o 'url="[^"]*"' "$APPCAST" | head -1 | cut -d'"' -f2)
+          echo "appcast の enclosure: $URL"
+          if curl -sfL -o /dev/null --max-time 30 -r 0-0 "$URL"; then
+            echo "配布物に到達できました"
           else
-            echo "::warning::http_dist/download/Youyaku.dmg が見つかりません。DMG なしで公開します(ダウンロードリンクは 404 になります)。証明書のある Mac で ./build.sh --dist を実行し、生成された DMG を commit してください。"
+            echo "::warning::$URL に到達できません(未アップロード、または非公開リポジトリのため匿名ダウンロード不可)。サイトのダウンロードボタンとアプリ内アップデートが 404 になります。"
           fi
 
       - name: Upload Pages artifact

@@ -88,8 +88,10 @@
     <h2>5. Ollama 連携（macOS 版・任意設定）</h2>
     <p>macOS 版では、任意設定として外部の推論エンジン Ollama と連携できます。この機能を有効にした場合、<b>整形対象のテキストがユーザーの設定した接続先ホストへ送信されます</b>。既定の接続先はローカル（127.0.0.1）ですが、ユーザーが外部ホストを指定した場合はそのホストへテキストが送信されるため、接続先の管理には十分ご注意ください。</p>
 
-    <h2>6. 更新の確認（macOS 版）</h2>
-    <p>macOS 版は、新しいバージョンの有無を確認するため、1日1回を上限に本サイト（youyaku.hinoshiba.com）から<b>バージョン番号のみを記載したテキストファイル</b>を取得します。この通信でアプリからユーザーの情報が送信されることはありません。この機能は設定でオフにできます。</p>
+    <h2>6. 更新の確認とアプリ内アップデート（macOS 版）</h2>
+    <p>macOS 版は、新しいバージョンの有無を確認するため、1日1回を上限に本サイト（youyaku.hinoshiba.com）から<b>更新情報のみを記載したファイル（appcast.xml）</b>を取得します。この通信でアプリからユーザーの情報が送信されることはありません。この機能は設定でオフにできます。</p>
+    <p>新しいバージョンがある場合、<b>ユーザーが「アップデート」を選んだときにのみ</b>、更新用のディスクイメージ（DMG）を GitHub（github.com）からダウンロードして適用します。この通信に伴い、IP アドレスや User-Agent 等の接続情報が GitHub 社に送信されます。取り扱いは <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub のプライバシーステートメント</a>に従います。ユーザーの同意なく更新が適用されることはありません。</p>
+    <p>更新機能の実装には <a href="https://sparkle-project.org/" target="_blank" rel="noopener">Sparkle</a> を使用しています。Sparkle が備える匿名の利用統計送信機能は<b>無効</b>にしています。</p>
 
     <h2>7. 本サイトの配信（GitHub Pages）</h2>
     <p>本サイトは GitHub, Inc. の GitHub Pages を通じて配信されています。サイトへのアクセスに伴い、IP アドレス等のアクセス情報が同社のシステムを経由し、その取り扱いは <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub のプライバシーステートメント</a>に従います。運営者がこれらのアクセス情報を個人の特定に利用することはありません。</p>
