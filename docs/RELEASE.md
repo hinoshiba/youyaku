@@ -68,6 +68,13 @@ xcrun notarytool store-credentials youyaku-notary \
 > （公開鍵を変えた新版を配っても、旧版のアプリはそれを検証できない）。
 > 書き出し: `Vendor/sparkle-bin/generate_keys -x sparkle-private-key.txt`（安全な場所へ移してから削除）
 
+> **別の Mac で署名する場合は「作成」ではなく「取り込み」。** 署名用 Mac を移行・新調したときに
+> `setup-sparkle-keys.sh`（引数なしの `generate_keys`）を実行すると**新しい鍵ペアができてしまい**、
+> 公開鍵が変わって既存利用者へアップデートを配れなくなる。バックアップした秘密鍵を取り込む:
+> `Vendor/sparkle-bin/generate_keys -f sparkle-private-key.txt`
+> （キーチェーンに既存の「Private key for signing Sparkle updates」があれば先に削除してから）。
+> 取り込み後、`Info.plist` の `SUPublicEDKey` が既存の公開鍵のままであることを確認する。
+
 ### 5. GitHub CLI（`gh`）を用意（任意）
 
 タグ作成と DMG アップロードは GitHub Web UI で行うため必須ではない。
@@ -291,13 +298,7 @@ macOS 版は [Sparkle 2](https://sparkle-project.org/) を埋め込んでおり�
   実装は `Sources/Youyaku/Support/Updater.swift`。
 - **設定**: 「アップデートを自動確認」をオフにすると定期チェックの通信ごと止まる。
 
-鍵の作成・バックアップは「前提条件 → 4. Sparkle の署名鍵を作成」を参照。
-
-### DMG のサイズ上限
-
-GitHub Releases のアセットは **1 ファイル 2 GiB** まで。現状の内蔵構成（llama.framework の macOS
-スライスは約 12 MiB、Sparkle.framework は約 5 MiB）では十分に収まる。Pages に置くのは数 KB の
-テキスト（`appcast.xml` / `version.txt`）だけなので、Pages 側のサイズ上限は配布の制約にならない。
+鍵の作成・バックアップ・別 Mac への取り込みは「前提条件 → 4. Sparkle の署名鍵を作成」を参照。
 
 ## Vendor（llama.cpp / Sparkle）の更新手順
 
