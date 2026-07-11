@@ -13,6 +13,7 @@ struct SettingsView: View {
             VStack(spacing: 18) {
                 shortcutSection
                 premiseSection
+                templateSection
                 refineSection
                 speechSection
                 outputSection
@@ -144,6 +145,21 @@ struct SettingsView: View {
                    "Background information considered when refining your prompt. Switch between presets per project or use case.")
             )
             PremiseEditorView()
+        }
+        .padding(18)
+        .card()
+    }
+
+    // MARK: - テンプレート
+
+    private var templateSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(
+                tr("テンプレート", "Templates"),
+                tr("「テンプレ」モードで話した内容を記入するひな形です。本文の {{項目名}} が記入欄になり、話されなかった項目は追加入力を促します。",
+                   "Forms filled in from your speech in Template mode. Each {{field}} in the body becomes a blank, and you'll be prompted to dictate any fields left unfilled.")
+            )
+            TemplateEditorView()
         }
         .padding(18)
         .card()
@@ -644,6 +660,135 @@ struct PremiseEditorView: View {
         }
         .onAppear {
             selectedID = app.settings.value.activePremiseID ?? app.settings.value.premises.first?.id
+        }
+    }
+}
+
+// MARK: - テンプレートエディタ
+
+struct TemplateEditorView: View {
+    @EnvironmentObject var app: AppState
+    @State private var selectedID: UUID?
+
+    private var selectedIndex: Int? {
+        guard let selectedID else { return nil }
+        return app.settings.value.templates.firstIndex { $0.id == selectedID }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            // 左: テンプレート一覧
+            VStack(spacing: 0) {
+                List(selection: $selectedID) {
+                    ForEach(app.settings.value.templates) { template in
+                        HStack(spacing: 6) {
+                            Image(systemName: template.id == app.settings.value.activeTemplateID
+                                  ? "checkmark.circle.fill" : "list.bullet.rectangle")
+                                .font(.system(size: 11))
+                                .foregroundStyle(template.id == app.settings.value.activeTemplateID
+                                                 ? Brand.primary : .secondary)
+                            Text(template.name.isEmpty ? tr("名称未設定", "Untitled") : template.name)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
+                        }
+                        .tag(template.id)
+                    }
+                }
+                .listStyle(.plain)
+                .frame(height: 180)
+
+                Divider()
+
+                HStack(spacing: 2) {
+                    Button {
+                        var template = TemplatePreset(name: tr("新しいテンプレート", "New Template"), body: "")
+                        template.id = UUID()
+                        app.settings.value.templates.append(template)
+                        selectedID = template.id
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+
+                    Button {
+                        if let index = selectedIndex {
+                            let removed = app.settings.value.templates.remove(at: index)
+                            if app.settings.value.activeTemplateID == removed.id {
+                                app.settings.value.activeTemplateID = app.settings.value.templates.first?.id
+                            }
+                            selectedID = app.settings.value.templates.first?.id
+                        }
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(selectedIndex == nil || app.settings.value.templates.count <= 1)
+
+                    Spacer()
+                }
+                .padding(6)
+            }
+            .frame(width: 190)
+            .background(Color(nsColor: .textBackgroundColor).opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.primary.opacity(0.08))
+            )
+
+            // 右: 編集
+            VStack(alignment: .leading, spacing: 10) {
+                if let index = selectedIndex {
+                    TextField(tr("テンプレート名", "Template Name"), text: $app.config.templates[index].name)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12.5))
+
+                    TextEditor(text: $app.config.templates[index].body)
+                        .font(.system(size: 12, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .padding(8)
+                        .frame(minHeight: 140)
+                        .background(Color(nsColor: .textBackgroundColor).opacity(0.4))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.primary.opacity(0.08))
+                        )
+
+                    HStack {
+                        let fields = app.settings.value.templates[index].fields
+                        Text(fields.isEmpty
+                             ? tr("記入欄は {{項目名}} の形式で書きます(例: {{今日やったこと}})", "Write blanks as {{field}} (e.g. {{Accomplishments}})")
+                             : tr("記入欄: \(fields.joined(separator: "、"))", "Fields: \(fields.joined(separator: ", "))"))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(2)
+                        Spacer()
+                        if app.settings.value.activeTemplateID != app.settings.value.templates[index].id {
+                            Button(tr("このテンプレートを使用", "Use This Template")) {
+                                app.settings.value.activeTemplateID = app.settings.value.templates[index].id
+                            }
+                            .controlSize(.small)
+                        } else {
+                            Label(tr("使用中", "Active"), systemImage: "checkmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Brand.primary)
+                        }
+                    }
+                } else {
+                    Spacer()
+                    Text(tr("左の一覧からテンプレートを選択してください", "Select a template from the list on the left"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    Spacer()
+                }
+            }
+            .padding(.leading, 14)
+            .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            selectedID = app.settings.value.activeTemplateID ?? app.settings.value.templates.first?.id
         }
     }
 }

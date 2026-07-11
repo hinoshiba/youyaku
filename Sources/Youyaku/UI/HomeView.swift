@@ -127,6 +127,10 @@ struct HomeView: View {
                     tint: .white
                 )
                 Chip(text: tr("モデル: \(app.settings.value.activeModelLabel)", "Model: \(app.settings.value.activeModelLabel)"), icon: "cpu", tint: .white)
+                if app.settings.value.refineMode == .template,
+                   let template = app.settings.value.activeTemplate {
+                    Chip(text: tr("テンプレート: \(template.name)", "Template: \(template.name)"), icon: "list.bullet.rectangle", tint: .white)
+                }
                 if let premise = app.settings.value.activePremise, !premise.text.isEmpty {
                     Chip(text: tr("前提: \(premise.name)", "Context: \(premise.name)"), icon: "doc.text", tint: .white)
                 }

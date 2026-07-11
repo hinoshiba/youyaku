@@ -30,6 +30,7 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
     case raw      // 文字起こしのみ
     case clean    // 整文(フィラー除去)
     case command  // AIへの命令文に再構成
+    case template // 登録テンプレートへの記入
 
     var id: String { rawValue }
 
@@ -38,6 +39,7 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
         case .raw: return tr("そのまま", "Raw")
         case .clean: return tr("整文", "Clean Up")
         case .command: return tr("AI命令化", "AI Prompt")
+        case .template: return tr("テンプレ", "Template")
         }
     }
 
@@ -46,6 +48,7 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
         case .raw: return "text.quote"
         case .clean: return "wand.and.stars"
         case .command: return "terminal"
+        case .template: return "list.bullet.rectangle"
         }
     }
 
@@ -54,6 +57,7 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
         case .raw: return tr("音声認識の結果をそのまま使います(LLM不使用)", "Uses the speech recognition result as is (no LLM)")
         case .clean: return tr("フィラーを除去し、読みやすい文章に整えます", "Removes filler words and tidies up the text")
         case .command: return tr("AIアシスタントへの明確な指示文に再構成します", "Restructures your speech into a clear instruction for an AI assistant")
+        case .template: return tr("話した内容を登録テンプレートに記入します。埋められなかった項目は追加入力を促します", "Fills your registered template from what you said, and prompts you to dictate any fields left blank")
         }
     }
 }
@@ -86,6 +90,55 @@ struct PremisePreset: Identifiable, Codable, Hashable {
             """
         )
     }
+}
+
+// MARK: - テンプレートプリセット
+
+// 「テンプレ」モードで LLM に記入させるひな形。本文中の {{項目名}} が記入欄になる。
+// 記入できなかった欄はプレースホルダのまま残させ、アプリ側で残存を検出して
+// ユーザーに追加入力を促す(LLM の自己申告に頼らない決定論的な不足判定)
+struct TemplatePreset: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var body: String
+
+    static let dailyReportID = UUID(uuidString: "00000000-0000-0000-0000-000000000101")!
+
+    static var sampleDailyReport: TemplatePreset {
+        TemplatePreset(
+            id: dailyReportID,
+            name: "日報(例)",
+            body: """
+            # 日報
+
+            ## 今日やったこと
+            {{今日やったこと}}
+
+            ## 明日やること
+            {{明日やること}}
+
+            ## 困っていること・相談したいこと
+            {{困っていること}}
+            """
+        )
+    }
+
+    /// 本文に含まれる記入欄 {{項目名}} を出現順(重複なし)で返す
+    static func fields(in text: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: "\\{\\{([^{}\\n]{1,60})\\}\\}") else { return [] }
+        let ns = text as NSString
+        var seen = Set<String>()
+        var out: [String] = []
+        for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            let name = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty, seen.insert(name).inserted {
+                out.append(name)
+            }
+        }
+        return out
+    }
+
+    var fields: [String] { Self.fields(in: body) }
 }
 
 // MARK: - ショートカット
@@ -147,6 +200,8 @@ struct AppSettings: Codable {
     var temperature = 0.2
     var premises: [PremisePreset] = [.initial, .sample]
     var activePremiseID: UUID? = PremisePreset.defaultID
+    var templates: [TemplatePreset] = [.sampleDailyReport]
+    var activeTemplateID: UUID? = TemplatePreset.dailyReportID
 
     // LLM
     var engine = EngineKind.builtin
@@ -179,6 +234,10 @@ struct AppSettings: Codable {
 
     var activePremise: PremisePreset? {
         premises.first { $0.id == activePremiseID }
+    }
+
+    var activeTemplate: TemplatePreset? {
+        templates.first { $0.id == activeTemplateID }
     }
 
     // 認識言語の候補(設定・ツールバー・iOS音声入力画面で共通利用)
@@ -240,6 +299,8 @@ struct AppSettings: Codable {
         temperature = (try? c.decodeIfPresent(Double.self, forKey: .temperature)) ?? d.temperature
         premises = (try? c.decodeIfPresent([PremisePreset].self, forKey: .premises)) ?? d.premises
         activePremiseID = (try? c.decodeIfPresent(UUID.self, forKey: .activePremiseID)) ?? d.activePremiseID
+        templates = (try? c.decodeIfPresent([TemplatePreset].self, forKey: .templates)) ?? d.templates
+        activeTemplateID = (try? c.decodeIfPresent(UUID.self, forKey: .activeTemplateID)) ?? d.activeTemplateID
         engine = (try? c.decodeIfPresent(EngineKind.self, forKey: .engine)) ?? d.engine
         builtinModelFile = (try? c.decodeIfPresent(String.self, forKey: .builtinModelFile)) ?? d.builtinModelFile
         model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? d.model

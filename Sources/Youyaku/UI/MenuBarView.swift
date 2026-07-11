@@ -185,6 +185,22 @@ struct MenuBarView: View {
                 .labelsHidden()
                 .frame(maxWidth: 180)
             }
+            if app.settings.value.refineMode == .template {
+                HStack {
+                    Label(tr("テンプレート", "Template"), systemImage: "list.bullet.rectangle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Picker("", selection: $app.config.activeTemplateID) {
+                        Text(tr("なし", "None")).tag(UUID?.none)
+                        ForEach(app.settings.value.templates) { template in
+                            Text(template.name).tag(UUID?.some(template.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 180)
+                }
+            }
         }
     }
 

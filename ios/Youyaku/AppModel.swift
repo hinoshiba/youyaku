@@ -203,8 +203,22 @@ final class AppModel: ObservableObject {
             return
         }
 
+        // テンプレモードは記入先のテンプレートが必須。未設定なら原文のまま案内する
+        var template: TemplatePreset?
+        if s.refineMode == .template {
+            guard let t = s.activeTemplate,
+                  !t.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                refined = transcript
+                statusMessage = tr("テンプレートが未設定のため、認識結果をそのまま表示しています(「設定 > テンプレート」から登録できます)",
+                                   "No template is set, so the raw transcription is shown. (Add one in Settings > Templates.)")
+                phase = .result
+                return
+            }
+            template = t
+        }
+
         let (system, user) = Refiner.prompts(
-            mode: s.refineMode, premise: s.activePremise,
+            mode: s.refineMode, premise: s.activePremise, template: template,
             transcript: transcript, modelHint: file, localeID: sessionLocaleID
         )
         let stream = llamaEngine.chatStream(
@@ -232,6 +246,16 @@ final class AppModel: ObservableObject {
                     self.statusMessage = tr("整形結果が空だったため、認識結果をそのまま表示しています", "The refined result was empty, so the raw transcription is shown.")
                 } else {
                     self.recordRefinedToHistory()
+                    // テンプレモード: 出力に残った {{項目名}} = 話されていない項目。
+                    // 「続きから再開」で追加入力させ、全文で記入し直す
+                    if s.refineMode == .template {
+                        let missing = TemplatePreset.fields(in: self.refined)
+                        if !missing.isEmpty {
+                            let list = missing.joined(separator: tr("、", ", "))
+                            self.statusMessage = tr("未記入の項目があります: \(list) —「続きから再開」で続けて話すと埋められます",
+                                                    "Some fields are still blank: \(list) — tap Resume to dictate the missing details.")
+                        }
+                    }
                 }
                 self.phase = .result
                 if interrupted, self.statusMessage == nil {

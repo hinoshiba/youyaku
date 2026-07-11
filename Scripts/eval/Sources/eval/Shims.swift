@@ -16,6 +16,7 @@ enum RefineMode: String, Codable, CaseIterable, Identifiable {
     case raw
     case clean
     case command
+    case template
     var id: String { rawValue }
 }
 
@@ -23,4 +24,10 @@ struct PremisePreset: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var name: String
     var text: String
+}
+
+struct TemplatePreset: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var body: String
 }

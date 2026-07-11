@@ -36,6 +36,10 @@ struct DictateView: View {
     private var header: some View {
         HStack(spacing: 8) {
             chip(app.settings.value.activeModelLabel, "cpu")
+            if app.settings.value.refineMode == .template,
+               let template = app.settings.value.activeTemplate {
+                chip(template.name, "list.bullet.rectangle")
+            }
             if let premise = app.settings.value.activePremise, !premise.text.isEmpty {
                 chip(premise.name, "doc.text")
             }

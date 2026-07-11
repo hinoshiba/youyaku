@@ -55,6 +55,10 @@ struct HUDView: View {
             Spacer()
 
             if app.settings.value.refineMode != .raw {
+                if app.settings.value.refineMode == .template,
+                   let template = app.settings.value.activeTemplate {
+                    Chip(text: template.name, icon: "list.bullet.rectangle", tint: Brand.primary)
+                }
                 if let premise = app.settings.value.activePremise, !premise.text.isEmpty {
                     Chip(text: premise.name, icon: "doc.text", tint: Brand.primary)
                 }
@@ -230,7 +234,7 @@ struct HUDView: View {
                 keyHint("esc", tr("中断", "Cancel"))
             case .result:
                 keyHint("↩", app.settings.value.autoPaste ? tr("貼り付け", "Paste") : tr("コピー", "Copy"))
-                keyHint("⌘↩", tr("続きから再開", "Resume"))
+                keyHint("⌘↩", app.missingFields.isEmpty ? tr("続きから再開", "Resume") : tr("続けて話して埋める", "Dictate Missing Fields"))
                 keyHint("⌘C", tr("コピーのみ", "Copy Only"))
                 if app.settings.value.refineMode != .raw {
                     keyHint("⌘R", tr("整形をやり直す", "Refine Again"))

@@ -8,6 +8,7 @@ struct SettingsView: View {
             Form {
                 refineSection
                 premiseSection
+                templateSection
                 speechSection
                 vocabularySection
                 generalSection
@@ -70,6 +71,45 @@ struct SettingsView: View {
             } label: {
                 Label(tr("プリセットを追加", "Add preset"), systemImage: "plus")
             }
+        }
+    }
+
+    private var templateSection: some View {
+        Section {
+            Picker(tr("使用中", "Active"), selection: $app.config.activeTemplateID) {
+                Text(tr("なし", "None")).tag(UUID?.none)
+                ForEach(app.settings.value.templates) { Text($0.name).tag(UUID?.some($0.id)) }
+            }
+            ForEach(Array(app.settings.value.templates.enumerated()), id: \.element.id) { index, _ in
+                NavigationLink {
+                    TemplateEditor(index: index)
+                } label: {
+                    Text(app.settings.value.templates[index].name.isEmpty
+                         ? tr("名称未設定", "Untitled")
+                         : app.settings.value.templates[index].name)
+                }
+            }
+            .onDelete { indexSet in
+                var templates = app.settings.value.templates
+                templates.remove(atOffsets: indexSet)
+                if templates.isEmpty { templates = [.sampleDailyReport] }
+                app.config.templates = templates
+                if !templates.contains(where: { $0.id == app.settings.value.activeTemplateID }) {
+                    app.config.activeTemplateID = templates.first?.id
+                }
+            }
+            Button {
+                var t = TemplatePreset(name: tr("新しいテンプレート", "New template"), body: "")
+                t.id = UUID()
+                app.config.templates.append(t)
+            } label: {
+                Label(tr("テンプレートを追加", "Add template"), systemImage: "plus")
+            }
+        } header: {
+            Text(tr("テンプレート", "Templates"))
+        } footer: {
+            Text(tr("「テンプレ」モードで話した内容を記入するひな形です。本文の {{項目名}} が記入欄になります。",
+                    "Forms filled in from your speech in Template mode. Each {{field}} in the body becomes a blank."))
         }
     }
 
@@ -187,6 +227,41 @@ struct PremiseEditor: View {
             }
         }
         .navigationTitle(tr("前提プリセット", "Context preset"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - テンプレートエディタ
+
+struct TemplateEditor: View {
+    @EnvironmentObject var app: AppModel
+    let index: Int
+
+    var body: some View {
+        Form {
+            Section(tr("名前", "Name")) {
+                TextField(tr("テンプレート名", "Template name"), text: Binding(
+                    get: { app.settings.value.templates[safe: index]?.name ?? "" },
+                    set: { if app.settings.value.templates.indices.contains(index) { app.config.templates[index].name = $0 } }
+                ))
+            }
+            Section {
+                TextEditor(text: Binding(
+                    get: { app.settings.value.templates[safe: index]?.body ?? "" },
+                    set: { if app.settings.value.templates.indices.contains(index) { app.config.templates[index].body = $0 } }
+                ))
+                .frame(minHeight: 220)
+                .font(.system(size: 14, design: .monospaced))
+            } header: {
+                Text(tr("本文", "Body"))
+            } footer: {
+                let fields = app.settings.value.templates[safe: index]?.fields ?? []
+                Text(fields.isEmpty
+                     ? tr("記入欄は {{項目名}} の形式で書きます(例: {{今日やったこと}})", "Write blanks as {{field}} (e.g. {{Accomplishments}})")
+                     : tr("記入欄: \(fields.joined(separator: "、"))", "Fields: \(fields.joined(separator: ", "))"))
+            }
+        }
+        .navigationTitle(tr("テンプレート", "Template"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

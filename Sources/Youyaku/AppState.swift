@@ -19,6 +19,7 @@ final class AppState: ObservableObject {
     @Published var transcript = ""
     @Published var refined = ""
     @Published var statusMessage: String?
+    @Published var missingFields: [String] = []   // テンプレモードで未記入のまま残った項目
     @Published var hotkeyActive = true   // ショートカットの登録に成功しているか
 
     let settings = SettingsStore()
@@ -147,6 +148,7 @@ final class AppState: ObservableObject {
         statusMessage = nil
         transcript = ""
         refined = ""
+        missingFields = []
         sessionHistoryID = nil
         beginRecording(resumingFrom: "")
     }
@@ -263,6 +265,20 @@ final class AppState: ObservableObject {
     func refine(interrupted: Bool = false) {
         let s = settings.value
 
+        // テンプレモードは記入先のテンプレートが必須。未設定なら原文のまま案内する
+        var template: TemplatePreset?
+        if s.refineMode == .template {
+            guard let t = s.activeTemplate,
+                  !t.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                refined = transcript
+                statusMessage = tr("テンプレートが未設定のため、認識結果をそのまま表示しています(「設定 > テンプレート」から登録できます)",
+                                   "No template is set, so the raw transcription is shown. (Add one in Settings > Templates.)")
+                phase = .result
+                return
+            }
+            template = t
+        }
+
         let stream: AsyncThrowingStream<String, Error>
         let modelLabel = s.activeModelLabel
 
@@ -276,7 +292,7 @@ final class AppState: ObservableObject {
                 return
             }
             let (system, user) = Refiner.prompts(
-                mode: s.refineMode, premise: s.activePremise,
+                mode: s.refineMode, premise: s.activePremise, template: template,
                 transcript: transcript, modelHint: file, localeID: sessionLocaleID
             )
             stream = llamaEngine.chatStream(
@@ -293,7 +309,7 @@ final class AppState: ObservableObject {
                 return
             }
             let (system, user) = Refiner.prompts(
-                mode: s.refineMode, premise: s.activePremise,
+                mode: s.refineMode, premise: s.activePremise, template: template,
                 transcript: transcript, modelHint: s.model, localeID: sessionLocaleID
             )
             stream = ollama.chatStream(
@@ -307,6 +323,7 @@ final class AppState: ObservableObject {
         dismissWork?.cancel()   // 予約済みの自動クローズが整形中に発火しないように
         phase = .refining
         refined = ""
+        missingFields = []
 
         refineTask = Task { [weak self] in
             guard let self else { return }
@@ -328,6 +345,16 @@ final class AppState: ObservableObject {
                     self.statusMessage = tr("整形結果が空だったため、認識結果をそのまま表示しています", "The refined result was empty, so the raw transcription is shown.")
                 } else {
                     self.recordRefinedToHistory()
+                    // テンプレモード: 出力に残った {{項目名}} = 話されていない項目。
+                    // 続きから再開(⌘↩)で追加入力させ、全文で記入し直す
+                    if s.refineMode == .template {
+                        self.missingFields = TemplatePreset.fields(in: self.refined)
+                        if !self.missingFields.isEmpty {
+                            let list = self.missingFields.joined(separator: tr("、", ", "))
+                            self.statusMessage = tr("未記入の項目があります: \(list) — ⌘↩ で続けて話すと埋められます",
+                                                    "Some fields are still blank: \(list) — press ⌘↩ to dictate the missing details.")
+                        }
+                    }
                 }
                 self.phase = .result
                 if interrupted {
@@ -429,6 +456,7 @@ final class AppState: ObservableObject {
         refineTask = nil
         phase = .idle
         statusMessage = nil
+        missingFields = []
         hud.hide()
     }
 
@@ -440,7 +468,8 @@ final class AppState: ObservableObject {
     }
 
     private func maybeInstantPaste() {
-        if settings.value.instantPaste {
+        // 未記入の項目が残っている間は、書きかけのテンプレートを自動貼り付けしない
+        if settings.value.instantPaste, missingFields.isEmpty {
             accept()
         }
     }
