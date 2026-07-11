@@ -17,6 +17,9 @@
 #
 # 公証は「アプリ本体」と「DMG」の2段階で行う。アプリ本体に staple しておくことで、
 # DMG から /Applications へコピーした後もオフラインで Gatekeeper を通せる(初回起動の警告回避)。
+#
+# インストーラーウィンドウの見た目(背景画像・アイコン配置)は Finder を AppleScript で
+# 操作して作るため、初回実行時はターミナルへの「Finder の操作許可」ダイアログが出る。
 set -e
 cd "$(dirname "$0")/.."
 
@@ -73,16 +76,115 @@ if [ -n "$PROFILE" ]; then
 fi
 
 # ---- 2. DMG 生成(staple 済み app を封入)----
+# Chrome 等と同じ「背景画像+大きなアイコン+→ Applications」のインストーラーウィンドウにする。
+# 手順: 書き込み可能な UDRW で作る → 一時マウントして Finder にレイアウト(.DS_Store)を
+# 書かせる → 読み取り専用の UDZO に変換。レイアウトの座標は MakeDMGBackground.swift と対応。
 echo "==> DMG ステージング作成"
 rm -rf "$STAGING" "$DMG"
-mkdir -p "$STAGING"
+mkdir -p "$STAGING/.background"
 cp -R "$APP" "$STAGING/"
 # ドラッグ&ドロップでインストールできるよう /Applications へのシンボリックリンクを置く
 ln -s /Applications "$STAGING/Applications"
 
-echo "==> DMG 生成: $DMG"
-hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+# 背景画像(Retina 対応: 1x/2x の PNG を生成して TIFF に合成)
+echo "==> DMG 背景画像を生成"
+swift Scripts/MakeDMGBackground.swift dist
+tiffutil -cathidpicheck dist/dmg-background.png "dist/dmg-background@2x.png" \
+    -out "$STAGING/.background/background.tiff"
+rm -f dist/dmg-background.png "dist/dmg-background@2x.png"
+
+# 作業イメージはホームディレクトリ配下に置かない: Finder が背景画像のブックマークに
+# 作業イメージの絶対パスを書き込むため、dist/ 配下だと配布 DMG の .DS_Store に
+# /Users/<ユーザー名>/... が残ってしまう(/tmp なら個人情報を含まない)
+echo "==> DMG 生成(読み書き可能な作業イメージ)"
+RW_DIR=$(mktemp -d /tmp/youyaku-dmg.XXXXXX)
+RW_DMG="$RW_DIR/${APP_NAME}-rw.dmg"
+trap 'rm -rf "$RW_DIR"' EXIT
+hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING" -ov -fs HFS+ -format UDRW "$RW_DMG" >/dev/null
 rm -rf "$STAGING"
+
+# 一時マウント。マウントポイント名は衝突時に「Youyaku 1」等へ変わりうるので出力から拾う
+ATTACH_OUT=$(hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen)
+DEVICE=$(echo "$ATTACH_OUT" | head -n1 | awk '{print $1}')
+MOUNT_POINT=$(echo "$ATTACH_OUT" | grep -o '/Volumes/.*$' | head -n1)
+if [ -z "$DEVICE" ] || [ -z "$MOUNT_POINT" ]; then
+    echo "!! 作業イメージのマウントに失敗しました" >&2
+    exit 1
+fi
+VOL_NAME="${MOUNT_POINT#/Volumes/}"
+
+# Finder にウィンドウの見た目を設定させる(結果はボリューム直下の .DS_Store に保存される)。
+# ターミナルから Finder を操作するため、初回は「オートメーション」の許可ダイアログが出る。
+echo "==> Finder でインストーラーウィンドウのレイアウトを設定"
+sleep 2  # Finder がボリュームを認識するのを待つ
+if ! osascript - "$VOL_NAME" "$APP_NAME" <<'EOS'
+on run argv
+    set volName to item 1 of argv
+    set appName to item 2 of argv
+    tell application "Finder"
+        tell disk volName
+            open
+            set current view of container window to icon view
+            set toolbar visible of container window to false
+            set statusbar visible of container window to false
+            -- 内容領域 660x400(+タイトルバー)。MakeDMGBackground.swift のキャンバスと対応
+            set bounds of container window to {200, 120, 860, 548}
+            set opts to icon view options of container window
+            set arrangement of opts to not arranged
+            set icon size of opts to 128
+            set text size of opts to 13
+            set background picture of opts to file ".background:background.tiff"
+            set position of item (appName & ".app") of container window to {165, 190}
+            set position of item "Applications" of container window to {495, 190}
+            update without registering applications
+            delay 1
+            close
+        end tell
+    end tell
+end run
+EOS
+then
+    hdiutil detach "$DEVICE" >/dev/null 2>&1 || true
+    echo "!! Finder でのレイアウト設定に失敗しました。" >&2
+    echo "   初回はターミナルに Finder の操作許可が必要です:" >&2
+    echo "   システム設定 > プライバシーとセキュリティ > オートメーション > (ターミナル) > Finder" >&2
+    exit 1
+fi
+
+# ボリュームアイコン(マウント時に Finder のサイドバー/デスクトップへ出るアイコン)。
+# Finder はレイアウト書き込み時に既存の .VolumeIcon.icns を消すため、レイアウト設定の
+# 「後」に置くこと(create-dmg も同じ順序)。SetFile は Command Line Tools 由来なので、
+# 無ければアイコンなしのまま進める(致命的ではない)
+if command -v SetFile >/dev/null 2>&1; then
+    cp "$APP/Contents/Resources/AppIcon.icns" "$MOUNT_POINT/.VolumeIcon.icns"
+    SetFile -c icnC "$MOUNT_POINT/.VolumeIcon.icns"
+    SetFile -a C "$MOUNT_POINT"
+else
+    echo "==> SetFile が無いためボリュームアイコンはスキップ(xcode-select --install で入ります)"
+fi
+
+# Finder が .DS_Store を書き終えるのを待ってからアンマウント
+for i in {1..10}; do
+    [ -f "$MOUNT_POINT/.DS_Store" ] && break
+    sleep 1
+done
+sync
+DETACHED=0
+for i in {1..6}; do
+    if hdiutil detach "$DEVICE" >/dev/null 2>&1; then
+        DETACHED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$DETACHED" -ne 1 ]; then
+    echo "!! 作業イメージのアンマウントに失敗しました: $DEVICE" >&2
+    exit 1
+fi
+
+echo "==> DMG 変換(配布用・読み取り専用): $DMG"
+hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG" >/dev/null
+rm -rf "$RW_DIR"
 
 # ---- 3. DMG 署名(あれば)----
 if [ -n "$DIST_ID" ]; then

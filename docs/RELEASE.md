@@ -146,6 +146,11 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 4. **アプリ本体を公証 + staple**（`ditto` で zip 化 → `notarytool submit --wait` → `stapler staple`）。
    DMG 封入前にアプリ自身へチケットを焼き込むことで、**DMG から取り出した後もオフラインで Gatekeeper を通せる**。
 5. **DMG 生成**（staple 済みアプリ + `/Applications` シンボリックリンク）。
+   Chrome などと同じ「背景画像 + 大きなアイコン + → Applications」のインストーラーウィンドウにする。
+   背景画像は `Scripts/MakeDMGBackground.swift` が生成（Retina 対応）し、レイアウトは一時マウントした
+   イメージ上で Finder に書かせて（`.DS_Store`）から読み取り専用の UDZO に変換する。
+   - Finder を AppleScript で操作するため、**初回はターミナルへの「Finder の操作許可」ダイアログが出る**
+     （システム設定 > プライバシーとセキュリティ > オートメーション）。
 6. **DMG 署名**（Developer ID + タイムスタンプ）。
 7. **DMG を公証 + staple**、`stapler validate` で検証。
 8. **更新フィードを生成**：`sign_update` で DMG に EdDSA 署名を付け、`http_dist/download/appcast.xml` と
