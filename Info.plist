@@ -19,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.0.3</string>
+	<string>0.0.4</string>
 	<key>CFBundleVersion</key>
-	<string>4</string>
+	<string>5</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSMinimumSystemVersion</key>
@@ -36,28 +36,15 @@
 	<string>音声入力のためにマイクを使用します。/ Uses the microphone for voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>話した内容をテキストに変換するために音声認識を使用します。既定ではこの Mac 上で認識され、設定でオフにした場合のみ Apple のサーバー認識を使用します。/ Converts your speech to text. Recognition runs on this Mac by default; Apple's server-based recognition is used only if you turn the on-device setting off.</string>
-
-	<!--
-	  Sparkle(直販版のアプリ内アップデート)。docs/RELEASE.md「アプリ内アップデート」参照。
-	-->
-	<!-- 更新フィード。build.sh --dist が http_dist/download/appcast.xml を生成する -->
-	<key>SUFeedURL</key>
-	<string>https://youyaku.hinoshiba.com/download/appcast.xml</string>
-	<!--
-	  DMG の EdDSA 署名を検証する公開鍵。対応する秘密鍵はキーチェーンに置き、リポジトリには入れない。
-	  初回のみ ./Scripts/setup-sparkle-keys.sh を実行し、出力された公開鍵でこの値を置き換える。
-	  プレースホルダのままだとアプリは更新機構を起動せず、build.sh --dist はエラーで停止する。
-	-->
-	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY</string>
-	<!-- 初回起動時に Sparkle が出す「自動確認しますか?」の質問を出さない(アプリの設定画面で管理するため) -->
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<!-- 定期チェックは1日1回(プライバシーポリシーの記載に合わせる) -->
-	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
-	<!-- 黙って更新を入れない。ダウンロードとインストールは毎回利用者に確認する -->
 	<key>SUAllowsAutomaticUpdates</key>
 	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://youyaku.hinoshiba.com/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>pzk/9dsnuxHWTSKs9ICVwbThO6zgypxq/9Bn8SZvNto=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>
