@@ -55,13 +55,27 @@ jobs:
   eval:
     needs: matrix
     runs-on: macos-14   # Apple Silicon。GPU は無いので CPU 推論(YOUYAKU_GPU_LAYERS=0)
-    timeout-minutes: 60
+    # CPU 推論は遅い(実測 ja_subset 48 ケース: 0.6B ≈ 45 分、3〜4B ≈ 2.2〜3 時間)。
+    # 最長の Qwen3-4B が約 3 時間強のため、余裕を見て 4 時間にする。
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
         model: ${{ fromJSON(needs.matrix.outputs.models) }}
     steps:
       - uses: actions/checkout@v4
+
+      # Vendor/ は gitignore なので CI では checkout に含まれず、毎回取得が必要。
+      # fetch-vendor.sh はタグ + SHA-256 でピン留めしているため、スクリプトの
+      # ハッシュをキーにすればバージョン更新時にキャッシュも自動で切り替わる。
+      - name: 推論エンジンをキャッシュ(llama.xcframework)
+        uses: actions/cache@v4
+        with:
+          path: Vendor
+          key: vendor-${{ hashFiles('Scripts/fetch-vendor.sh') }}
+
+      - name: 推論エンジンを用意(キャッシュ済みなら SKIP)
+        run: ./Scripts/fetch-vendor.sh
 
       - name: モデルをキャッシュ
         uses: actions/cache@v4
@@ -82,11 +96,13 @@ jobs:
             --out "result.jsonl" \
             --metrics "metrics.json"
 
+      # run.sh は Scripts/eval/ に cd してから実行するため、相対パス指定の
+      # 成果物(result.jsonl / metrics.json)は Scripts/eval/ 配下にできる
       - name: ベースラインと比較 / 記録
         run: |
           python3 Scripts/eval/ci-check.py \
             --model "${{ matrix.model }}" \
-            --metrics metrics.json \
+            --metrics Scripts/eval/metrics.json \
             --baseline-dir Scripts/eval/ci-baseline \
             ${{ inputs.mode == 'record' && '--record' || '' }}
 
