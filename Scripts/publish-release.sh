@@ -1,6 +1,9 @@
 #!/bin/zsh
 # 公証済み DMG を GitHub Releases へ公開する(タグ v<version> にアセット Youyaku.dmg を上げる)。
 #
+# 既定の運用は docs/RELEASE.md「リリースごとの手順」のとおり GitHub Web UI での手動アップロード。
+# このスクリプトは gh CLI が使える環境向けの任意の自動化で、同じことをコマンドで行う。
+#
 #   使い方: ./Scripts/publish-release.sh [--clobber]
 #           --clobber … 同名アセットが既にあるとき上書きする(既定は中止)
 #

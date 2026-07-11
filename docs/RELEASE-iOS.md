@@ -194,7 +194,7 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 | 概要（Description） | **4,000 文字** | バージョン提出時 | 機能説明の本文 |
 | キーワード（Keywords） | **100 文字（合計）** | バージョン提出時 | カンマ区切り・**カンマ後にスペースを入れない** |
 
-- **プロモーションテキストだけは新バージョンを出さずに随時更新できる**（「近日 App Store へ」→「公開しました」等の告知に使える）。概要はバージョン提出時のみ更新可。
+- **プロモーションテキストだけは新バージョンを出さずに随時更新できる**（お知らせやキャンペーン告知の差し替えに使える）。概要はバージョン提出時のみ更新可。
 - **キーワードのスペースは 100 文字にカウントされ無駄**になる。`音声入力,AI,ローカル` のようにカンマ直後は詰める（句の中の語区切りにはスペース可）。
 
 **例文（そのまま使わず調整すること。iOS は常に端末内処理なので断定表現も可）**:
@@ -274,9 +274,9 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 ## 6. 承認後
 
 - **手動リリース**にしておくと、承認後に自分のタイミングで公開できる。
-- 公開後、サイトの「近日 App Store へ」表示を実際の App Store リンクに差し替える
-  （`http_dist/index.html` の該当箇所）。この変更は `main` への push で GitHub Actions が
-  自動デプロイする（[RELEASE.md](RELEASE.md#サイト公開ダウンロードリンク) 参照）。
+- 公開されると App Store の製品ページ（<https://apps.apple.com/jp/app/id6788719460>）が有効になる。
+  サイト（`http_dist/index.html`）や README の iOS リンクがこの URL を指していることを確認する。
+  サイトの変更は `main` への push で GitHub Actions（`deploy-pages.yml`）が自動デプロイする。
 
 ---
 

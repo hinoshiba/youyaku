@@ -1,7 +1,7 @@
 #!/bin/zsh
 # 署名済み Youyaku.app から配布用 DMG を作成し、可能なら公証(notarize)+staple したうえで、
 # Sparkle の更新フィード(http_dist/download/appcast.xml)を生成する。
-# DMG の実体は GitHub Releases に置くため、ここでは配置しない(→ Scripts/publish-release.sh)。
+# DMG の実体は GitHub Releases に置く(→ docs/RELEASE.md「リリースごとの手順」で手動アップロード)。
 #
 #   使い方: ./Scripts/make-dmg.sh [dist/Youyaku.app]
 #   通常は ./build.sh --dist から自動で呼ばれる。
@@ -114,7 +114,7 @@ else
 fi
 
 # ---- 5. 更新フィード(appcast.xml)を生成 ----
-# DMG の実体は GitHub Releases に置く(`Scripts/publish-release.sh` がアップロードする)。
+# DMG の実体は GitHub Releases に置く(docs/RELEASE.md「リリースごとの手順」で手動アップロード)。
 # ここで作るのは Pages に置くフィードだけ。フィード URL(アプリの SUFeedURL)を Pages 側に
 # 固定しておくと、将来 DMG の置き場所を変えてもアプリを作り直さずに追随できる。
 #
@@ -198,6 +198,8 @@ echo "==> 更新フィードを生成: $PUBLISH_DIR/appcast.xml (v$VERSION → $
 echo "==> DMG: $DMG"
 echo
 echo "次の手順(docs/RELEASE.md「リリースごとの手順」):"
-echo "  1) ./Scripts/publish-release.sh          … GitHub Releases に DMG を上げる"
-echo "  2) git add http_dist/download/appcast.xml http_dist/download/version.txt Info.plist ios/project.yml"
+echo "  1) cp $DMG dist/${APP_NAME}.dmg"
+echo "  2) GitHub Web UI で Release(タグ v$VERSION)を作り dist/${APP_NAME}.dmg を上げる"
+echo "     (gh があれば ./Scripts/publish-release.sh でも可)"
+echo "  3) git add http_dist/download/appcast.xml http_dist/download/version.txt"
 echo "     git commit && git push               … Pages にフィードを反映"

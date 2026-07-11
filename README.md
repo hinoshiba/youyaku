@@ -27,22 +27,9 @@ Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命�
 ## ダウンロード
 
 - **Mac 版**: [youyaku.hinoshiba.com](https://youyaku.hinoshiba.com/) から公証済み DMG をダウンロード(Developer ID 署名 + 公証済み)。
-- **iPhone / iPad 版**: App Store で公開予定。
+- **iPhone / iPad 版**: [App Store](https://apps.apple.com/jp/app/id6788719460) からダウンロード。
 
-ソースからビルドする場合は以下を参照してください。
-
-## ビルド
-
-```bash
-./build.sh          # 依存取得 → ビルド → dist/Youyaku.app 生成まで自動(開発用)
-open dist/Youyaku.app
-
-./build.sh --dist   # 配布用: Developer ID 署名 + 公証 + DMG 生成(要 Apple Developer Program)
-```
-
-Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は、メンテナ向けに [docs/RELEASE.md](docs/RELEASE.md) にまとめています。
-
-`build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)と、アプリ内アップデート用の Sparkle(sparkle-project, 2.9.4, 約 11MB)を `Vendor/` にダウンロードします。どちらもリリースタグと SHA-256 でピン留めしており、再取得可能なバイナリのため **git にはコミットしていません**(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
+ソースからビルドする場合は[ビルド](#ビルド)を参照してください。
 
 ## 初回セットアップ
 
@@ -62,6 +49,41 @@ Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公�
 | コピーのみ | `⌘C` |
 | 整形をやり直す | `⌘R` |
 | キャンセル / 閉じる | `esc` |
+
+## プライバシー
+
+- 音声認識は既定でデバイス上で実行(「オンデバイス認識を優先」ON)。OFF にした場合のみ Apple のサーバー認識が使われ、音声が Apple に送信される
+- LLM 推論はアプリ内蔵エンジン(llama.cpp + Metal)でローカル実行
+- 外部通信の全経路は以下のみ。テレメトリ・分析・広告 SDK は一切なし
+  - モデルのダウンロード時: Hugging Face へ接続(IP アドレス・User-Agent 等が同社に送信される)
+  - Ollama 連携(任意設定): 有効にすると設定先ホストへ整形対象テキストを送信(既定はローカル 127.0.0.1。外部ホストも指定可)
+  - 更新チェック(macOS): youyaku.hinoshiba.com から更新情報(appcast.xml)のみを1日1回取得(設定でオフ可)
+  - アプリ内アップデート(macOS): 利用者が「アップデート」を選んだときだけ GitHub Releases から DMG を取得して適用(Sparkle。同意なしに更新は入らない)
+- 履歴・設定・モデルはすべて `~/Library/Application Support/Youyaku/` に保存され、ユーザーが削除可能
+- 詳細は配布サイトのプライバシーポリシー([http_dist/privacy.html](http_dist/privacy.html))を参照
+
+## iOS 版
+
+iPhone / iPad 版は [App Store](https://apps.apple.com/jp/app/id6788719460) で公開しています。ソースは [`ios/`](ios/) にあります。コアロジック(設定・履歴・LLM エンジン・整形・モデル管理・音声認識)は macOS 版と共有し、UI のみ iOS 向けに実装しています。ビルド方法は [ios/README.md](ios/README.md) を参照。
+
+---
+
+# 開発者・メンテナ向け
+
+ここから下は、ソースからビルドしたり、リリースを担当したりする人向けの情報です。アプリを使うだけなら上記の[ダウンロード](#ダウンロード)で十分です。
+
+## ビルド
+
+```bash
+./build.sh          # 依存取得 → ビルド → dist/Youyaku.app 生成まで自動(開発用)
+open dist/Youyaku.app
+
+./build.sh --dist   # 配布用: Developer ID 署名 + 公証 + DMG 生成(要 Apple Developer Program)
+```
+
+Xcode 不要(Command Line Tools のみでビルド可能)。配布(署名・公証・DMG)の手順は [docs/RELEASE.md](docs/RELEASE.md) にまとめています。
+
+`build.sh` は最初に `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework(ggml-org, b9859, 約 242MB)と、アプリ内アップデート用の Sparkle(sparkle-project, 2.9.4, 約 11MB)を `Vendor/` にダウンロードします。どちらもリリースタグと SHA-256 でピン留めしています(`Vendor/` と `dist/` は `.gitignore` 済み)。クローン直後は `./Scripts/fetch-vendor.sh` 単体でも取得できます。
 
 ## アーキテクチャ
 
@@ -87,21 +109,12 @@ Sources/Youyaku/
 - `Youyaku --snapshot <dir>` で全画面をオフスクリーンレンダリング(UI 検証用)
 - `Youyaku --selftest <gguf> [プロンプト]` で内蔵エンジンの推論を CLI から検証
 
-## プライバシー
+## リリース
 
-- 音声認識は既定でデバイス上で実行(「オンデバイス認識を優先」ON)。OFF にした場合のみ Apple のサーバー認識が使われ、音声が Apple に送信される
-- LLM 推論はアプリ内蔵エンジン(llama.cpp + Metal)でローカル実行
-- 外部通信の全経路は以下のみ。テレメトリ・分析・広告 SDK は一切なし
-  - モデルのダウンロード時: Hugging Face へ接続(IP アドレス・User-Agent 等が同社に送信される)
-  - Ollama 連携(任意設定): 有効にすると設定先ホストへ整形対象テキストを送信(既定はローカル 127.0.0.1。外部ホストも指定可)
-  - 更新チェック(macOS): youyaku.hinoshiba.com から更新情報(appcast.xml)のみを1日1回取得(設定でオフ可)
-  - アプリ内アップデート(macOS): 利用者が「アップデート」を選んだときだけ GitHub Releases から DMG を取得して適用(Sparkle。同意なしに更新は入らない)
-- 履歴・設定・モデルはすべて `~/Library/Application Support/Youyaku/` に保存され、ユーザーが削除可能
-- 詳細は配布サイトのプライバシーポリシー([http_dist/privacy.html](http_dist/privacy.html))を参照
+メンテナ向けの署名・公証・配布・App Store 提出の手順は次にまとめています。
 
-## iOS 版
-
-iPhone / iPad 版のソースは [`ios/`](ios/) にあります。コアロジック(設定・履歴・LLM エンジン・整形・モデル管理・音声認識)は macOS 版と共有し、UI のみ iOS 向けに実装しています。ビルド方法は [ios/README.md](ios/README.md) を参照。
+- macOS(Developer ID 直販): [docs/RELEASE.md](docs/RELEASE.md)
+- iOS(App Store): [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md)
 
 ## 貢献
 
@@ -110,8 +123,6 @@ Issue・Pull Request を歓迎します。まず [CONTRIBUTING.md](CONTRIBUTING.
 - バグ報告・機能リクエストは Issue テンプレートに沿ってお願いします。
 - セキュリティ上の脆弱性は公開 Issue に書かず、[SECURITY.md](SECURITY.md) の手順で非公開に報告してください。
 - 参加者は [行動規範](CODE_OF_CONDUCT.md) に従ってください。
-
-リリース(署名・公証・App Store 提出)の手順は、メンテナ向けに [docs/RELEASE.md](docs/RELEASE.md) / [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md) にまとめています。
 
 ## ライセンス
 
