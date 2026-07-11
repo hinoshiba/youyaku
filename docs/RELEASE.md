@@ -5,7 +5,7 @@
 
 macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布するための手順書。
 `build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple → 更新フィード(appcast.xml)生成**
-までが自動で走る。DMG 本体は `Scripts/publish-release.sh` で **GitHub Releases** へ公開する。
+までが自動で走る。DMG 本体は **GitHub Releases**（タグ `v<version>` / アセット名 `Youyaku.dmg`）へ手動でアップロードする。
 
 ## なぜ Mac App Store ではなく直販なのか
 
@@ -68,9 +68,10 @@ xcrun notarytool store-credentials youyaku-notary \
 > （公開鍵を変えた新版を配っても、旧版のアプリはそれを検証できない）。
 > 書き出し: `Vendor/sparkle-bin/generate_keys -x sparkle-private-key.txt`（安全な場所へ移してから削除）
 
-### 5. GitHub CLI（`gh`）を用意
+### 5. GitHub CLI（`gh`）を用意（任意）
 
-`Scripts/publish-release.sh` が DMG を GitHub Releases へアップロードするのに使う。
+タグ作成と DMG アップロードは GitHub Web UI で行うため必須ではない。
+`Scripts/publish-release.sh` でコマンドから自動化したい場合のみ用意する。
 
 ```bash
 brew install gh && gh auth login
@@ -144,8 +145,8 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
    `http_dist/download/version.txt` を書き出す。
    - 未公証（`YOUYAKU_NOTARY_PROFILE` 未設定）の場合は**スキップ**する（配布不可の DMG 向けのフィードを作らないため）。
    - appcast の `enclosure` は `https://github.com/hinoshiba/youyaku/releases/download/v<version>/Youyaku.dmg` を指す。
-     - **この時点ではまだアセットは存在しない**（次節の `publish-release.sh` で上げる）。
-     - DMG 本体の公開は `Scripts/publish-release.sh` が行う（`gh release create/upload`）。
+     - **この時点ではまだアセットは存在しない**（次節「リリースごとの手順」で GitHub Releases へ上げる）。
+     - DMG 本体の公開は GitHub Web UI でのタグ作成 + アップロードで行う（`gh` があれば `Scripts/publish-release.sh` でも可）。
 
 
 ### エンタイトルメント（`Youyaku.entitlements`）
@@ -197,28 +198,59 @@ Apple Silicon / Intel の両方の Mac で動く DMG にするためで、`build
 
 ### リリースごとの手順
 
+DMG の署名・公証と appcast の EdDSA 署名は、**Developer ID 証明書と Sparkle 秘密鍵のある Mac**（以下「署名用 Mac」）で行う。
+タグ打ちと DMG のアップロードは **GitHub の Web UI** で手作業で行う。
+
 **実行順に意味がある**。先に Releases へ DMG を上げ、あとから appcast.xml を push する。
 逆順にすると、Pages にフィードが載ってから DMG がアップされるまでのあいだ、
 「アプリには更新が見えるのにダウンロードは 404」という時間帯ができる。
 
+#### 1. 署名用 Mac でビルドする
+
 ```bash
-# 証明書のある Mac で:
 export YOUYAKU_NOTARY_PROFILE=youyaku-notary
 
-# 1. バージョンを上げ、コードの状態を確定させて push する
-#    （タグはこのコミットに付く。未 push のコミットにはタグを作れない）
+# バージョンを上げ、コードの状態を確定させて push する
+# （タグはこのコミットに付ける。未 push のコミットにはタグを作れない）
 ./Scripts/bump-version.sh X.Y.Z
 git add Info.plist ios/project.yml
 git commit -m "リリース vX.Y.Z"
 git push
 
-# 2. ビルド → 公証 → DMG と appcast.xml を生成
+# ビルド → 公証 → DMG と appcast.xml / version.txt を生成
 ./build.sh --dist
+```
 
-# 3. DMG を GitHub Releases へ公開（タグ vX.Y.Z を作り、Youyaku.dmg を上げる）
-./Scripts/publish-release.sh
+生成物:
+- `dist/Youyaku-X.Y.Z.dmg`（公証・staple 済み）
+- `http_dist/download/appcast.xml` / `http_dist/download/version.txt`（手順 3 で push する）
 
-# 4. 更新フィードを公開 → 既存利用者のアプリ内アップデートに反映される
+#### 2. GitHub Web UI でタグを打ち、DMG を上げる
+
+アップロードするアセット名は **`Youyaku.dmg` に統一する**（appcast の `enclosure` とサイトの `latest`
+リンクがこの名前を指すため）。ビルド成果物は版番号つきの名前なので、先に固定名へコピーしておく:
+
+```bash
+cp dist/Youyaku-X.Y.Z.dmg dist/Youyaku.dmg
+```
+
+そのうえで GitHub の Web UI で:
+
+1. リポジトリの **Releases → Draft a new release** を開く。
+2. **Choose a tag** に `vX.Y.Z` を入力し、**Create new tag: vX.Y.Z on publish** を選ぶ。
+   ターゲット（Target）は手順 1 で push した `main` の最新コミット。
+3. タイトルに `vX.Y.Z`、必要なら本文にリリースノートを書く。
+4. **Attach binaries** の欄へ `dist/Youyaku.dmg` をドラッグしてアップロードする。
+5. **Publish release**。
+
+公開後、アセットが `Youyaku.dmg` として
+`https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg` から取得できることを確認する。
+
+#### 3. 更新フィードを公開する
+
+Releases に DMG が載ったのを確認してから appcast を push する（既存利用者のアプリ内アップデートに反映される）:
+
+```bash
 git add http_dist/download/appcast.xml http_dist/download/version.txt
 git commit -m "appcast vX.Y.Z"
 git push
@@ -229,7 +261,10 @@ git push
 
 > 公開済みの DMG を**差し替えてはいけない**。`appcast.xml` の EdDSA 署名は DMG のバイト列に紐づくため、
 > 差し替えると、既に配ったフィードを持つアプリが検証に失敗する。版を上げて出し直すこと。
-> （`publish-release.sh` は既存アセットの上書きを既定で拒否する。）
+
+> **`gh` CLI が使える署名用 Mac なら**、手順 2 の代わりに `./Scripts/publish-release.sh` で
+> タグ作成と `Youyaku.dmg` のアップロードを自動化できる（固定名へのコピーも同スクリプトが行い、
+> 既存アセットの上書きは既定で拒否する）。
 
 ### 公開範囲について
 
@@ -261,9 +296,8 @@ macOS 版は [Sparkle 2](https://sparkle-project.org/) を埋め込んでおり�
 ### DMG のサイズ上限
 
 GitHub Releases のアセットは **1 ファイル 2 GiB** まで。現状の内蔵構成（llama.framework の macOS
-スライスは約 12 MiB、Sparkle.framework は約 5 MiB）では十分に収まる。
-一方 **Pages に置くのは数 KB のテキストだけ**になったので、Pages 側のサイズ上限（1 ファイル 100 MB）は
-もう配布の制約にならない。
+スライスは約 12 MiB、Sparkle.framework は約 5 MiB）では十分に収まる。Pages に置くのは数 KB の
+テキスト（`appcast.xml` / `version.txt`）だけなので、Pages 側のサイズ上限は配布の制約にならない。
 
 ## Vendor（llama.cpp / Sparkle）の更新手順
 
