@@ -9,6 +9,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if SelfTest.runIfRequested() { return }
         if Snapshot.runIfRequested() { return }
 
+        // ログイン項目としての自動起動かは起動イベントが生きている今しか判定できないため、
+        // ゴースト整理などで処理が遅れる前に確定させておく
+        let launchedAtLogin = Self.launchedAsLoginItem()
+        if launchedAtLogin {
+            // 自動起動では作業の邪魔をしない: ウィンドウを出さず Dock アイコンも隠して
+            // メニューバー常駐のみで始める
+            NSApp.setActivationPolicy(.accessory)
+        }
+
         // 二重起動を防ぐ(メニューバーアイコンの重複防止)。
         // ただしバンドルがディスクから消えている既存インスタンスは、再ビルドや
         // 入れ替えで実体を失った「ゴースト」。TCC の検証に失敗して録音を開始できない
@@ -31,13 +40,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // グローバルショートカットの登録と競合しないように)
                 Task { @MainActor in
                     await Self.terminate(ghosts: ghosts)
-                    AppState.shared.bootstrap()
+                    self.completeLaunch(showWindow: !launchedAtLogin)
                 }
                 return
             }
         }
 
+        completeLaunch(showWindow: !launchedAtLogin)
+    }
+
+    // 起動を完了する。手動起動では一般的なアプリと同じようにメインウィンドウを表示する
+    @MainActor
+    private func completeLaunch(showWindow: Bool) {
         AppState.shared.bootstrap()
+        if showWindow {
+            WindowManager.shared.show()
+        }
+    }
+
+    // ログイン項目(SMAppService)としての自動起動かどうか。
+    // 起動イベントの propData が lgit かで判定する
+    private static func launchedAsLoginItem() -> Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventID == AEEventID(kAEOpenApplication)
+        else { return false }
+        return event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?
+            .enumCodeValue == OSType(keyAELaunchedAsLogInItem)
     }
 
     // 通常終了を要求し、1 秒応じなければ強制終了する(最長 2.5 秒待つ)。
