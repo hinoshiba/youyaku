@@ -128,7 +128,6 @@ struct KeyCombo: Codable, Equatable {
 // MARK: - アプリ設定
 
 struct AppSettings: Codable {
-    var onboarded = false
     var hotkey = KeyCombo.default
     var uiLanguage = AppLanguage.japanese
 
@@ -220,7 +219,6 @@ struct AppSettings: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = AppSettings()
-        onboarded = (try? c.decodeIfPresent(Bool.self, forKey: .onboarded)) ?? d.onboarded
         hotkey = (try? c.decodeIfPresent(KeyCombo.self, forKey: .hotkey)) ?? d.hotkey
         uiLanguage = (try? c.decodeIfPresent(AppLanguage.self, forKey: .uiLanguage)) ?? d.uiLanguage
         localeID = (try? c.decodeIfPresent(String.self, forKey: .localeID)) ?? d.localeID

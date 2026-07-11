@@ -103,11 +103,6 @@ final class AppState: ObservableObject {
         if settings.value.engine == .ollama {
             Task { await ollama.refresh() }
         }
-
-        if !settings.value.onboarded {
-            settings.value.onboarded = true
-            WindowManager.shared.show(tab: .home)
-        }
     }
 
     /// ショートカットを変更する。登録に成功したら true。
