@@ -1,6 +1,9 @@
 name: Youyaku
 options:
   bundleIdPrefix: com.hinoshiba
+  # 開発言語(CFBundleDevelopmentRegion)。未指定だと en になり、
+  # App Store がバイナリ解析でアプリの対応言語を English と判定してしまう
+  developmentLanguage: ja
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -22,6 +25,11 @@ targets:
       path: Youyaku/Info.plist
       properties:
         CFBundleDisplayName: Youyaku
+        # 対応言語の明示宣言。UI 文言は tr(ja, en)(Support/L10n.swift)による日英併記で、
+        # .lproj を持たないため、宣言がないと App Store は開発言語しか認識できない
+        CFBundleLocalizations:
+          - ja
+          - en
         # XcodeGen は generate のたびに Info.plist を再生成する(手動編集は消える)ため、
         # 版数は必ずここで変数参照として指定する(Scripts/bump-version.sh が上の
         # MARKETING_VERSION / CURRENT_PROJECT_VERSION を更新する)
