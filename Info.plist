@@ -14,8 +14,6 @@
 	<string>com.hinoshiba.youyaku</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
-	<!-- 対応言語の明示宣言。UI 文言は tr(ja, en)(Sources/Youyaku/Support/L10n.swift)による
-	     日英併記で .lproj を持たないため、宣言がないとシステムは開発言語しか認識できない -->
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>ja</string>
@@ -26,9 +24,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.0.5</string>
+	<string>0.0.6</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSMinimumSystemVersion</key>

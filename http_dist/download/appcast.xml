@@ -7,12 +7,12 @@
     <description>Youyaku (macOS) の更新フィード</description>
     <language>ja</language>
     <item>
-      <title>0.0.5</title>
-      <pubDate>Sat, 11 Jul 2026 04:35:38 +0000</pubDate>
-      <sparkle:version>6</sparkle:version>
-      <sparkle:shortVersionString>0.0.5</sparkle:shortVersionString>
+      <title>0.0.6</title>
+      <pubDate>Sun, 12 Jul 2026 20:41:45 +0000</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>0.0.6</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/hinoshiba/youyaku/releases/download/v0.0.5/Youyaku.dmg" type="application/octet-stream" sparkle:edSignature="Q3dqfnqkt79ULdQRlxu5TMuCTyazPbhtkkNA7AgiXryoh9Qlp6SuHzgf3DJHFRO4LzbP2xoX0gSIJk33Z04DCg==" length="9406424" />
+      <enclosure url="https://github.com/hinoshiba/youyaku/releases/download/v0.0.6/Youyaku.dmg" type="application/octet-stream" sparkle:edSignature="B6q2DDDPeoG9he9zBUGX1ICvFG14CGGgpdrxN9p13qwiISl+638Gd9sPyEpwVBRQocOSAHbvtFCIFJvvZJzmBA==" length="9406388" />
     </item>
   </channel>
 </rss>
