@@ -45,7 +45,7 @@ jobs:
     outputs:
       models: ${{ steps.set.outputs.models }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: set
         run: |
           models=$(python3 -c 'import json;print(json.dumps([m["name"] for m in json.load(open("Scripts/eval/models.json")) if m.get("ci")]))')
@@ -61,10 +61,10 @@ jobs:
       matrix:
         model: ${{ fromJSON(needs.matrix.outputs.models) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: モデルをキャッシュ
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/youyaku-eval/models/${{ matrix.model }}
           key: gguf-${{ matrix.model }}
@@ -94,7 +94,7 @@ jobs:
       # Scripts/eval/ci-baseline/ に置き、commit すると次回から check で使われる。
       - name: ベースラインをアップロード(record 時のみ)
         if: ${{ inputs.mode == 'record' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ci-baseline-${{ matrix.model }}
           path: Scripts/eval/ci-baseline/${{ matrix.model }}.json

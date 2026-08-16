@@ -15,48 +15,49 @@ iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の�
 
 ---
 
-## 0. 前提条件（初回のみ）
+## 0. Xcode Cloud 初回接続（初回のみ）
 
-### ツール
+App Store Connect の既存アプリ `Youyaku`（App ID `6788719460`、Bundle ID
+`com.hinoshiba.youyaku`）と Apple Developer Team `94HVVWXLK3` を使用する。署名はXcode Cloudの
+automatic signingに任せ、ローカルのApple Distribution証明書やprovisioning profileは使用しない。
+
+初回workflowだけはXcodeから作成する必要がある。`Youyaku.xcodeproj` はXcode Cloudが常に
+productを検出できるようリポジトリに含めている。XcodeのReport navigatorにあるCloud画面から
+`Youyaku` productを既存のApp Store Connectアプリへ接続する。
 
 ```bash
-# XcodeGen（未導入なら）
-brew install xcodegen
-# Xcode 本体（App Store 版 Xcode 16 以降を推奨）と Command Line Tools
-xcode-select -p                       # /Applications/Xcode.app/Contents/Developer になっていること
-sudo xcodebuild -license accept
+cd ios
+open Youyaku.xcodeproj
 ```
 
-### Apple Developer / App Store Connect
+最初の接続buildでは、Xcodeが提案するworkflowを編集してActionを**Build**（Archiveではない）にし、
+`main`から1回実行する。release用scriptはタグなしArchiveを意図的に拒否する。productの登録が完了したら、
+この初期workflowを次のrelease設定へ変更する。
 
-1. **Apple Developer Program**（$99/年）に登録済みであること（macOS 版と共通）。
-2. **Apple Distribution 証明書**をキーチェーンに用意する（Xcode の Settings → Accounts →
-   Manage Certificates → ＋ → Apple Distribution でも作成可）。
-3. **App ID を登録**（Developer サイト → Certificates, IDs & Profiles → Identifiers → ＋ → App IDs）:
-   - Bundle ID: **`com.hinoshiba.youyaku`**（Explicit）
-   - Capabilities で **Extended Virtual Addressing** と **Increased Memory Limit** を有効化する
-     （本アプリは大きな LLM モデルをロードするため。`ios/Youyaku/Youyaku.entitlements` の
-     `com.apple.developer.kernel.increased-memory-limit` に対応）。
-4. **App Store Connect にアプリを新規作成**（App Store Connect → マイ App → ＋ → 新規 App）:
-   - プラットフォーム: iOS
-   - Bundle ID: `com.hinoshiba.youyaku`
-   - SKU: 任意（例 `youyaku-ios`）
-   - 名前: `Youyaku`
+最初のbuildが完了したら、App Store Connectの **Youyaku → Xcode Cloud** でworkflowを次の値にする。
 
-### 署名の Team ID を設定
+- 名前: `Release`
+- General: **Restrict Editing**を有効にし、編集できる管理者をリリース担当者に限定する
+- Start Condition: **Tag Changes**、Custom Pattern `v*`
+- Auto-cancel Builds: **Off**（release tag buildを途中で取り消さない）
+- Action: **Archive**、Platform `iOS`、Scheme `Youyaku`
+- Deployment Preparation: **TestFlight and App Store**
+- TestFlightへの自動配布は、対象のinternal groupがある場合だけpost-actionとして追加する
 
-`ios/project.yml` の `DEVELOPMENT_TEAM` にはメンテナの Team ID（`94HVVWXLK3`）が設定されている。
-**フォークして自分でビルド・提出する場合は、自分の Team ID に置き換える**（Developer サイト →
-Membership の Team ID・10 桁）。`project.yml` を直接編集する（生成される `.xcodeproj` は毎回上書きされるため）:
+`ios/ci_scripts/ci_post_clone.sh` が固定バージョンのllama.xcframeworkを用意する。
+`ci_pre_xcodebuild.sh` はplatform、scheme、Bundle ID、Team、タグ、`MARKETING_VERSION`を検証し、
+不一致ならbuildを停止して、`CI_BUILD_NUMBER`を`CURRENT_PROJECT_VERSION`へ設定する。
 
-```yaml
-# ios/project.yml
-settings:
-  base:
-    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # ← 自分の Team ID に置き換える
-```
+product登録後、App Store Connectの **Youyaku > Xcode Cloud > Settings > Build Number** で、
+**Next Build Number**を同じmarketing versionで過去にupload済みの最大値より大きくする。
+リポジトリのfallback buildは`7`なので、`0.0.6`を再利用する場合は少なくとも`8`（App Store Connectに
+さらに大きいbuildがあればその次）から開始する。新しいmarketing versionではiOSの組み合わせ要件上
+`1`からでもよいが、Cloud buildとcandidateを一意に追跡しやすいよう既存連番の継続を推奨する。
 
-> Team ID は秘密情報ではない（配布アプリの署名に含まれる公開識別子）。
+GitHubではworkflowを有効にする前に、**Settings > Rules > Rulesets**でActiveなtag rulesetを作成する。
+対象patternを`v*`にし、**Restrict creations**、**Restrict updates**、**Restrict deletions**を有効にする。
+bypassは指定されたリリース担当者だけに限定し、review済みの`main` commitにだけtagを作成する。release tagは
+Xcode Cloudによる署名済みcandidateのbuild/uploadとmacOS版GitHub Releaseの起点になるため、移動・再利用しない。
 
 ---
 
@@ -66,28 +67,26 @@ settings:
 ./Scripts/bump-version.sh X.Y.Z
 ```
 
-`ios/project.yml` の `MARKETING_VERSION`（表示バージョン）と `CURRENT_PROJECT_VERSION`（ビルド番号）が
-更新される。**ビルド番号は App Store Connect 内で一意**である必要があるため、同じ版を再アップロードする
-場合も `CURRENT_PROJECT_VERSION` を増やす（`bump-version.sh` はビルド番号もインクリメントする）。
+`ios/project.yml` の `MARKETING_VERSION`（表示バージョン）とローカル用の
+`CURRENT_PROJECT_VERSION`が更新される。Xcode CloudではCloud側の連番`CI_BUILD_NUMBER`を使用する。
 
 > Info.plist の版数は `project.yml` の変数（`$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`）を
 > 参照するため、`xcodegen generate` のたびに正しい値で再生成される。
 
 ---
 
-## 2. アーカイブとアップロード（Xcode）
+## 2. タグでアーカイブとアップロードを開始
+
+変更を`main`へmergeし、`MARKETING_VERSION`と同じ`vX.Y.Z`タグをそのmerge commitへ付けてpushする。
 
 ```bash
-cd ios
-xcodegen generate
-open Youyaku.xcodeproj
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-1. スキーム `Youyaku`、実行先を **Any iOS Device (arm64)** にする。
-2. **Product → Archive**。
-3. Organizer が開いたら **Distribute App → App Store Connect → Upload** を選び、案内に従う
-   （自動署名なら証明書・プロファイルは Xcode が用意する）。
-4. アップロード後、App Store Connect で処理が終わると（数分〜十数分）、対象ビルドが選択可能になる。
+Xcode Cloudの`Release` workflowがarchive・automatic signing・App Store Connectへのuploadを行う。
+処理後、TestFlightでversion、Cloud build number、Bundle IDが意図した値であることを確認する。
+タグ名とversionが違う場合はbuildが失敗するため、誤ったタグを付け直して同じ版を上書きしない。
 
 ---
 
@@ -273,7 +272,8 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 ## 6. 承認後
 
-- **手動リリース**にしておくと、承認後に自分のタイミングで公開できる。
+- Xcode Cloudはbuildをuploadするところまでを担当し、App Reviewへの提出は自動実行しない。
+- App Store Connectで正しいbuildを選択し、既存のrelease設定を確認してからレビューへ提出する。
 - 公開されると App Store の製品ページ（<https://apps.apple.com/jp/app/id6788719460>）が有効になる。
   サイト（`http_dist/index.html`）や README の iOS リンクがこの URL を指していることを確認する。
   サイトの変更は `main` への push で GitHub Actions（`deploy-pages.yml`）が自動デプロイする。
@@ -284,4 +284,4 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 - App Store Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
 - App Privacy Details: https://developer.apple.com/app-store/app-privacy-details/
-- Uploading apps (Xcode Organizer / Transporter): https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
+- Xcode Cloud distribution: https://developer.apple.com/documentation/xcode/distributing-your-xcode-cloud-builds-through-testflight

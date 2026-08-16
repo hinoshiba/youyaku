@@ -7,6 +7,26 @@ macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布する
 `build.sh --dist` を実行すると、**署名 → DMG 生成 → 公証(notarization) → staple → 更新フィード(appcast.xml)生成**
 までが自動で走る。DMG 本体は **GitHub Releases**（タグ `v<version>` / アセット名 `Youyaku.dmg`）へ手動でアップロードする。
 
+## リリース権限の保護
+
+`v*`タグの作成は、macOS配布物の公開とiOS版Xcode Cloud candidateのbuild/uploadを開始できる
+リリース権限として扱う。GitHubの **Settings > Rules > Rulesets** にActiveなtag rulesetを作り、
+対象patternを`v*`、rulesを **Restrict creations**、**Restrict updates**、**Restrict deletions** とする。
+bypassは指定されたリリース担当者だけに限定し、review済みの`main` commitにだけtagを作成する。
+一度公開したrelease tagは移動、削除、再利用せず、訂正時は新しいversionを使う。
+
+## macOS版をXcode Cloudへ移さない判断
+
+今回Xcode Cloudへ移行するのはiOS版だけで、macOS直販releaseは本書の署名用Macでの手順を維持する。
+macOS版は単なるArchiveではなく、SwiftPM製品のuniversal app組み立て、Developer ID署名、公証とstaple、
+DMG生成、Sparkle秘密鍵によるEdDSA署名、GitHub Releaseへのupload、`appcast.xml`の順序付き公開までが
+一つのrelease境界になっている。これをCloudへ移すにはmacOS用Xcode productの新設に加え、Sparkle秘密鍵と
+GitHub書込資格情報をCloudへ預け、DMGとappcastを原子的に公開する別設計が必要になる。
+
+Xcode CloudはDeveloper ID署名済みappを生成できるが、現在の更新経路全体を同じ安全性で置き換えるものではない。
+秘密情報と既存利用者の更新経路を拙速に広げないため、本対応ではローカル手順を削除しない。Cloud側のsecret管理、
+失敗時rollback、GitHub Release/appcastのatomic publishを別途設計・reviewできた時点で再評価する。
+
 ## なぜ Mac App Store ではなく直販なのか
 
 Youyaku の中核機能「`⌥Space` でどこでも呼び出し → 最前面の他アプリへ自動貼り付け」は、
@@ -95,7 +115,7 @@ brew install gh && gh auth login
 ```
 
 - ルート `Info.plist` の `CFBundleShortVersionString` を書き換え、`CFBundleVersion` を +1 する。
-- `ios/project.yml` の `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` も同じ値に同期する（macOS / iOS で版数がズレるのを防ぐ）。
+- `ios/project.yml` の `MARKETING_VERSION` / ローカル用`CURRENT_PROJECT_VERSION`も同期する（Xcode CloudのApp Store build numberはCloud側の連番を使用する）。
 - DMG のファイル名、リリースタグ `v<version>`、サイトの `version.txt`、`appcast.xml` の版数は
   すべてこの値を参照するため、**ビルド前に必ず実行**する。
 
@@ -225,7 +245,7 @@ export YOUYAKU_NOTARY_PROFILE=youyaku-notary
 # バージョンを上げ、コードの状態を確定させて push する
 # （タグはこのコミットに付ける。未 push のコミットにはタグを作れない）
 ./Scripts/bump-version.sh X.Y.Z
-git add Info.plist ios/project.yml
+git add Info.plist ios/project.yml ios/Youyaku.xcodeproj
 git commit -m "リリース vX.Y.Z"
 git push
 
@@ -254,6 +274,9 @@ cp dist/Youyaku-X.Y.Z.dmg dist/Youyaku.dmg
 3. タイトルに `vX.Y.Z`、必要なら本文にリリースノートを書く。
 4. **Attach binaries** の欄へ `dist/Youyaku.dmg` をドラッグしてアップロードする。
 5. **Publish release**。
+
+`vX.Y.Z`タグのpushはiOS版のXcode Cloud `Release` workflowも開始する。タグのversionと
+`ios/project.yml`の`MARKETING_VERSION`が一致しない場合、iOS buildはfail-closedで停止する。
 
 公開後、アセットが `Youyaku.dmg` として
 `https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg` から取得できることを確認する。
@@ -331,6 +354,7 @@ macOS 版は [Sparkle 2](https://sparkle-project.org/) を埋め込んでおり�
 App Store Connect へ提出する前に確認する:
 
 - [ ] **バージョン**: `Scripts/bump-version.sh` で macOS 側と同期済みか（`ios/project.yml` の `MARKETING_VERSION`）。
+- [ ] **Cloud build**: `vX.Y.Z`タグで開始したXcode Cloud buildが成功し、意図したversion/buildをTestFlightで確認したか。
 - [ ] **アプリアイコン**: 1024x1024 のマーケティングアイコンを含む全サイズが揃っているか。
 - [ ] **スクリーンショット**: **iPhone と iPad の両方**（`TARGETED_DEVICE_FAMILY: "1,2"` のため iPad 分も必須）。
 - [ ] **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`

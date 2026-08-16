@@ -1,0 +1,41 @@
+name: Verify iOS project
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  xcodegen-drift:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate Xcode Cloud scripts
+        run: |
+          for script in ios/ci_scripts/*.sh; do test -x "$script"; /bin/sh -n "$script"; done
+          /bin/zsh -n Scripts/bump-version.sh Scripts/fetch-vendor.sh
+      - name: Install pinned XcodeGen
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            https://github.com/yonaskolb/XcodeGen/releases/download/2.45.4/xcodegen.zip \
+            --output "${RUNNER_TEMP}/xcodegen.zip"
+          echo "090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef  ${RUNNER_TEMP}/xcodegen.zip" \
+            | shasum -a 256 --check
+          unzip -q "${RUNNER_TEMP}/xcodegen.zip" -d "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/xcodegen/bin" >> "${GITHUB_PATH}"
+      - name: Verify committed project
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodegen generate
+          cd ..
+          generated_state=$(git status --porcelain=v1 --untracked-files=all)
+          if [ -n "${generated_state}" ]; then
+            git status --short --untracked-files=all
+            exit 1
+          fi
