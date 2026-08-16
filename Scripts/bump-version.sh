@@ -6,6 +6,7 @@
 # 書き換える対象(macOS / iOS で常に同じ版数を保つ):
 #   - Info.plist(macOS)  : CFBundleShortVersionString = <new-version>、CFBundleVersion は +1
 #   - ios/project.yml     : MARKETING_VERSION / CURRENT_PROJECT_VERSION を macOS 側と同期
+#   - ios/Youyaku.xcodeproj: Xcode Cloud が読む追跡済みプロジェクトを再生成
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,6 +17,10 @@ if [ -z "$NEW_VERSION" ]; then
 fi
 if ! [[ "$NEW_VERSION" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]]; then
     echo "!! バージョンは X.Y.Z 形式で指定してください: $NEW_VERSION" >&2
+    exit 1
+fi
+if ! command -v xcodegen >/dev/null 2>&1; then
+    echo "!! 追跡済みiOSプロジェクトの更新にXcodeGenが必要です: brew install xcodegen" >&2
     exit 1
 fi
 
@@ -31,6 +36,7 @@ NEW_BUILD=$((CURRENT_BUILD + 1))
 # ---- iOS: project.yml(YAML は PlistBuddy が使えないため、該当キーの行だけを sed で置換する)----
 sed -i '' -E "s|^([[:space:]]*MARKETING_VERSION:).*|\\1 \"${NEW_VERSION}\"|" "$YML"
 sed -i '' -E "s|^([[:space:]]*CURRENT_PROJECT_VERSION:).*|\\1 \"${NEW_BUILD}\"|" "$YML"
+(cd ios && xcodegen generate)
 
 # ---- 結果表示 ----
 echo "==> バージョンを更新しました"

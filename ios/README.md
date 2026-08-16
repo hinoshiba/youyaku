@@ -25,13 +25,17 @@ cd ios
 ./build.sh "iPhone 16" run      # ビルド後にシミュレータで起動
 ```
 
-`build.sh` は `xcodegen` で `Youyaku.xcodeproj` を生成してからビルドします。プロジェクトファイルは生成物なのでコミット対象外にできます(`project.yml` が真の定義)。
+`project.yml` がプロジェクト設定の正本です。Xcode Cloud が常に product と shared scheme を検出できるよう、生成した `Youyaku.xcodeproj` もリポジトリに含めます。`project.yml` を変更したら `xcodegen generate` を実行し、両方を同じ変更に含めてください。`build.sh` はローカルビルド前にプロジェクトを再生成します。
 
 Xcode で開く場合:
 
 ```bash
 cd ios && xcodegen generate && open Youyaku.xcodeproj
 ```
+
+## Xcode Cloud
+
+App Store向けRelease archiveはXcode Cloudで作成します。`vX.Y.Z`タグをpushすると、`ios/ci_scripts/`が依存取得・タグと`project.yml`および追跡済みXcode projectのversion照合・Cloud build numberの設定を行います。Workflowの設定値と初回接続手順は[App Store提出手順](../docs/RELEASE-iOS.md)を参照してください。
 
 ## 必要環境
 

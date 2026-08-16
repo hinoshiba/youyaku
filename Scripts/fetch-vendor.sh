@@ -1,5 +1,6 @@
 #!/bin/zsh
 # ビルドに必要な公式ビルド済みバイナリ(llama.cpp / Sparkle)を取得する。
+# `--ios` を指定した場合は iOS ビルドに不要な Sparkle を取得しない。
 # 再取得可能なバイナリのため git にはコミットせず、このスクリプトで取り寄せる。
 #
 # いずれも「リリースタグ + SHA-256」でピン留めする。GitHub のリリース資産は権限者が後から
@@ -7,6 +8,12 @@
 # 更新する場合は URL(タグ)・SHA-256・バージョンファイルの3点セットを揃えること(docs/RELEASE.md 参照)。
 set -e
 cd "$(dirname "$0")/.."
+
+MODE="${1:-all}"
+if [ "$MODE" != "all" ] && [ "$MODE" != "--ios" ]; then
+    echo "使い方: $0 [--ios]" >&2
+    exit 2
+fi
 
 # llama.cpp(推論エンジン)。更新時は Sources/Youyaku/LLM/LlamaEngine.swift が使う API との整合を確認する。
 LLAMA_VERSION="b9859"
@@ -125,4 +132,6 @@ fetch_sparkle() {
 }
 
 fetch_llama
-fetch_sparkle
+if [ "$MODE" != "--ios" ]; then
+    fetch_sparkle
+fi

@@ -114,7 +114,7 @@ Sources/Youyaku/
 メンテナ向けの署名・公証・配布・App Store 提出の手順は次にまとめています。
 
 - macOS(Developer ID 直販): [docs/RELEASE.md](docs/RELEASE.md)
-- iOS(App Store): [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md)
+- iOS(App Store / Xcode Cloud): [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md)
 
 ## 貢献
 

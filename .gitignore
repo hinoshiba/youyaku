@@ -12,9 +12,11 @@ Vendor/
 # ローカル状態
 .claude/scheduled_tasks.lock
 
-# iOS ビルド成果物 / 生成プロジェクト
+# iOS ビルド成果物 / Xcode のユーザー固有状態
 ios/build/
-ios/Youyaku.xcodeproj/
+**/*.xcodeproj/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+*.xcuserstate
 # App Store Connect API キー(絶対に commit しない)
 *.p8
 
