@@ -50,8 +50,8 @@ open Youyaku.xcodeproj
 
 product登録後、App Store Connectの **Youyaku > Xcode Cloud > Settings > Build Number** で、
 **Next Build Number**を同じmarketing versionで過去にupload済みの最大値より大きくする。
-リポジトリのfallback buildは`7`なので、`0.0.6`を再利用する場合は少なくとも`8`（App Store Connectに
-さらに大きいbuildがあればその次）から開始する。新しいmarketing versionではiOSの組み合わせ要件上
+`ios/project.yml`の`CURRENT_PROJECT_VERSION`以上、かつApp Store Connectに同じmarketing versionで
+存在する最大buildより大きい値から開始する。新しいmarketing versionではiOSの組み合わせ要件上
 `1`からでもよいが、Cloud buildとcandidateを一意に追跡しやすいよう既存連番の継続を推奨する。
 
 GitHubではworkflowを有効にする前に、**Settings > Rules > Rulesets**でActiveなtag rulesetを作成する。
