@@ -15,7 +15,7 @@ if [ -z "$NEW_VERSION" ]; then
     echo "使い方: ./Scripts/bump-version.sh <new-version>   例: ./Scripts/bump-version.sh 1.1.0" >&2
     exit 1
 fi
-if ! [[ "$NEW_VERSION" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]]; then
+if ! [[ "$NEW_VERSION" =~ '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' ]]; then
     echo "!! バージョンは X.Y.Z 形式で指定してください: $NEW_VERSION" >&2
     exit 1
 fi
