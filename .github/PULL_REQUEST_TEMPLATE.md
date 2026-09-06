@@ -1,23 +1,18 @@
-<!-- ご協力ありがとうございます。まず CONTRIBUTING.md に目を通してください。 -->
+## Summary
 
-## 概要
-<!-- この PR で何を・なぜ変更したか -->
+Describe the problem and the resulting behavior. Link related issues if applicable.
 
-## 関連 Issue
-<!-- 例) Closes #123。大きな変更は事前に Issue で相談してください。なければ「なし」 -->
+## Validation
 
-## 変更内容
--
+Describe the checks you ran and their results. For UI changes, include the languages and screen sizes checked, with screenshots when useful. Note any checks that could not be run.
 
-## 動作確認
-<!-- どのように確認したか。該当プラットフォームにチェック -->
-- [ ] macOS: `./build.sh` が通り、動作を確認した
-- [ ] iOS: `cd ios && ./build.sh "iPhone 16" run` を確認した（iOS に影響する場合）
-- [ ] 変更に関係する画面・機能を実際に操作して確認した
+## Release notes
 
-## チェックリスト
-- [ ] 変更は 1 つのテーマに絞られている
-- [ ] 既存のコードスタイル・命名・コメントの粒度に合わせた
-- [ ] ユーザー向けドキュメント（README 等）への影響があれば更新した
-- [ ] メンテナ向け手順書（`docs/RELEASE*.md`）に影響する変更ではない、または併せて更新した
-- [ ] 秘密情報（署名鍵・API キー・個人情報など）を含めていない
+Describe user-facing changes, compatibility or migration needs, and any remaining limitations. Write “None” if not applicable.
+
+## Checklist
+
+- [ ] The change is focused, and relevant documentation is updated.
+- [ ] Relevant local checks pass; builds for review require no maintainer credentials.
+- [ ] No secrets, personal contact details, or generated build artifacts are included. Use support@hinoshiba.com for project contact information.
+- [ ] Third-party code and assets retain their required license notices.

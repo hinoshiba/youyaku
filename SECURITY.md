@@ -10,7 +10,7 @@
 次のいずれかの方法で**非公開**に報告してください:
 
 - GitHub の [Private vulnerability reporting](https://github.com/hinoshiba/youyaku/security/advisories/new)（推奨）
-- メール: <contact-youyaku@hinoshiba.com>
+- メール: <support@hinoshiba.com>
 
 報告には、影響範囲・再現手順・想定される攻撃シナリオを、可能な範囲で含めてください。
 

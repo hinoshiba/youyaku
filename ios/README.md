@@ -1,6 +1,6 @@
 # Youyaku for iPhone / iPad
 
-macOS 版 Youyaku の iOS 版。音声を話すとローカルLLMが整った指示文に変換します。**音声認識もLLM推論もすべて端末内**で完結し、音声や文章が外部に送信されることはありません。外部への通信はモデルのダウンロード時(Hugging Face)のみです。
+macOS 版 Youyaku の iOS 版。音声を話すとローカルLLMが整った指示文に変換します。モデルはアプリ内のカタログからダウンロードできます。
 
 macOS 版との違いは「出力方法」です。iOS はサンドボックスの制約で他アプリへの自動貼り付けができないため、**アプリを開く → 話す → 整形 → コピー / 共有** という流れになります。
 
@@ -25,17 +25,20 @@ cd ios
 ./build.sh "iPhone 16" run      # ビルド後にシミュレータで起動
 ```
 
-`project.yml` がプロジェクト設定の正本です。Xcode Cloud が常に product と shared scheme を検出できるよう、生成した `Youyaku.xcodeproj` もリポジトリに含めます。`project.yml` を変更したら `xcodegen generate` を実行し、両方を同じ変更に含めてください。`build.sh` はローカルビルド前にプロジェクトを再生成します。
+`project.yml` がプロジェクト設定の正本です。ローカルXcodeでそのまま開けるよう、生成した `Youyaku.xcodeproj` もリポジトリに含めます。`project.yml` を変更したら `xcodegen generate` を実行し、両方を同じ変更に含めてください。`build.sh` はローカルビルド前にプロジェクトを再生成します。
 
 Xcode で開く場合:
 
 ```bash
+./Scripts/fetch-vendor.sh --ios
 cd ios && xcodegen generate && open Youyaku.xcodeproj
 ```
 
-## Xcode Cloud
+## App Storeへの提出
 
-App Store向けRelease archiveはXcode Cloudで作成します。`vX.Y.Z`タグをpushすると、`ios/ci_scripts/`が依存取得・タグと`project.yml`および追跡済みXcode projectのversion照合・Cloud build numberの設定を行います。Workflowの設定値と初回接続手順は[App Store提出手順](../docs/RELEASE-iOS.md)を参照してください。
+リリース担当者のMacでXcodeの **Product > Archive** を実行し、Organizerから検証・提出します。
+依存取得、version/buildの確認、既存署名identityの選択は[App Store提出手順](../docs/RELEASE-iOS.md)を参照してください。
+PRでは署名なしのビルドを使い、Apple Accountやメンテナのcredentialは不要です。
 
 ## 必要環境
 

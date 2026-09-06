@@ -128,10 +128,10 @@ struct SettingsView: View {
                      "Speech recognition and refinement happen entirely on-device. The only network access is for model downloads (Hugging Face)."),
                   systemImage: "lock.shield")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Link(destination: URL(string: "https://youyaku.hinoshiba.com/privacy.html")!) {
+            Link(destination: URL(string: tr("https://youyaku.hinoshiba.com/#privacy", "https://youyaku.hinoshiba.com/?lang=en#privacy"))!) {
                 Text(tr("プライバシーポリシー", "Privacy Policy"))
             }
-            Link(destination: URL(string: "https://youyaku.hinoshiba.com/terms.html")!) {
+            Link(destination: URL(string: tr("https://youyaku.hinoshiba.com/#terms", "https://youyaku.hinoshiba.com/?lang=en#terms"))!) {
                 Text(tr("利用規約", "Terms of Use"))
             }
             NavigationLink {

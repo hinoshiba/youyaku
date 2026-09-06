@@ -205,7 +205,7 @@ struct SettingsView: View {
                 MicrophonePicker()
             }
 
-            settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("既定(ON)ではネットワークに音声を送らず、この Mac 上だけで処理します。オンデバイス非対応の言語ではエラーになります", "By default (on), audio never leaves this Mac. Languages without on-device support will show an error.")) {
+            settingRow(tr("オンデバイス認識を優先", "Prefer On-Device Recognition"), help: tr("このMacで音声認識を行います。対応しない言語ではエラーになります", "Recognize speech on this Mac. Unsupported languages will show an error.")) {
                 Toggle("", isOn: $app.config.preferOnDevice)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -344,8 +344,8 @@ struct SettingsView: View {
 
             if app.updater.isEnabled {
                 settingRow(tr("アップデートを自動確認", "Check for Updates Automatically"),
-                           help: tr("1日1回、youyaku.hinoshiba.com から更新情報を取得します。新版があればお知らせし、アップデートするかどうかは毎回確認します。それ以外の情報は送信しません。",
-                                    "Checks youyaku.hinoshiba.com for updates once a day. You'll be notified when one is available and always asked before it installs. No other information is sent.")) {
+                           help: tr("1日1回、youyaku.hinoshiba.com から更新情報を取得します。新版があればお知らせし、アップデートするかどうかは毎回確認します。",
+                                    "Checks youyaku.hinoshiba.com for updates once a day. You'll be notified when one is available and always asked before it installs. ")) {
                     Toggle("", isOn: $app.config.checkForUpdates)
                         .toggleStyle(.switch)
                         .labelsHidden()
@@ -385,8 +385,8 @@ struct SettingsView: View {
             settingRow(tr("プライバシーポリシー・利用規約", "Privacy Policy & Terms"),
                        help: tr("収集しない情報・外部通信の内容・利用条件の説明", "What we don't collect, what network access occurs, and the terms of use")) {
                 HStack(spacing: 12) {
-                    Link(tr("プライバシー", "Privacy"), destination: URL(string: "https://youyaku.hinoshiba.com/privacy.html")!)
-                    Link(tr("利用規約", "Terms"), destination: URL(string: "https://youyaku.hinoshiba.com/terms.html")!)
+                    Link(tr("プライバシー", "Privacy"), destination: URL(string: tr("https://youyaku.hinoshiba.com/#privacy", "https://youyaku.hinoshiba.com/?lang=en#privacy"))!)
+                    Link(tr("利用規約", "Terms"), destination: URL(string: tr("https://youyaku.hinoshiba.com/#terms", "https://youyaku.hinoshiba.com/?lang=en#terms"))!)
                 }
                 .font(.system(size: 12))
             }

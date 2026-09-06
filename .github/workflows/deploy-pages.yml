@@ -37,12 +37,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: 連絡先プレースホルダの公開ブロック
+      - name: Check policy and support anchors
         run: |
-          if grep -q 'contact-placeholder' http_dist/privacy.html; then
-            echo "::error::privacy.html の問い合わせ先がプレースホルダのままです。公開前に実アドレスへ差し替えてください。"
-            exit 1
-          fi
+          python3 - <<'PYTHON'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Page(HTMLParser):
+              ids = set()
+              contacts = set()
+              def handle_starttag(self, tag, attributes):
+                  attrs = dict(attributes)
+                  if 'id' in attrs: self.ids.add(attrs['id'])
+                  if attrs.get('href', '').startswith('mailto:'):
+                      self.contacts.add(attrs['href'])
+          page = Page()
+          page.feed(Path('http_dist/index.html').read_text())
+          assert {'privacy', 'terms', 'support'} <= page.ids
+          assert page.contacts == {'mailto:support@hinoshiba.com'}
+          PYTHON
 
       - name: サイトを組み立て(開発用ドキュメントを除外)
         run: |

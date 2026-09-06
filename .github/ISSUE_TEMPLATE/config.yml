@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/hinoshiba/youyaku/security/advisories/new
     about: 脆弱性は公開 Issue に書かず、こちらから非公開で報告してください（SECURITY.md を参照）。
   - name: ✉️ お問い合わせ（メール）
-    url: mailto:contact-youyaku@hinoshiba.com
+    url: mailto:support@hinoshiba.com
     about: バグ報告・機能リクエスト以外の一般的な質問・お問い合わせはこちら。

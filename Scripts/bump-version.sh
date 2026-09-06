@@ -6,7 +6,7 @@
 # 書き換える対象(macOS / iOS で常に同じ版数を保つ):
 #   - Info.plist(macOS)  : CFBundleShortVersionString = <new-version>、CFBundleVersion は +1
 #   - ios/project.yml     : MARKETING_VERSION / CURRENT_PROJECT_VERSION を macOS 側と同期
-#   - ios/Youyaku.xcodeproj: Xcode Cloud が読む追跡済みプロジェクトを再生成
+#   - ios/Youyaku.xcodeproj: ローカルXcodeで開く追跡済みプロジェクトを再生成
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

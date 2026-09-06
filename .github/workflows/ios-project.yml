@@ -1,4 +1,4 @@
-name: Verify iOS project
+name: Verify local Xcode builds
 
 on:
   pull_request:
@@ -10,13 +10,15 @@ permissions:
 
 jobs:
   xcodegen-drift:
-    runs-on: macos-14
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Validate Xcode Cloud scripts
+      - name: Validate local build scripts
         run: |
-          for script in ios/ci_scripts/*.sh; do test -x "$script"; /bin/sh -n "$script"; done
-          /bin/zsh -n Scripts/bump-version.sh Scripts/fetch-vendor.sh
+          for script in build.sh ios/build.sh Scripts/bump-version.sh Scripts/fetch-vendor.sh; do
+            /bin/zsh -n "$script"
+          done
       - name: Install pinned XcodeGen
         shell: bash
         run: |
@@ -39,3 +41,13 @@ jobs:
             git status --short --untracked-files=all
             exit 1
           fi
+      - name: Fetch pinned build dependencies
+        run: ./Scripts/fetch-vendor.sh
+      - name: Build macOS executable without signing
+        run: swift build -c release
+      - name: Build iOS simulator without signing
+        run: |
+          xcodebuild -project ios/Youyaku.xcodeproj -scheme Youyaku \
+            -configuration Debug -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/youyaku-derived" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
