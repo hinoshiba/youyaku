@@ -40,7 +40,7 @@ Youyaku は「**音声認識も LLM 推論も既定でオンデバイス完結**
 
 ## ビルド環境
 
-- macOS 14 (Sonoma) 以降。Xcode は不要で **Command Line Tools のみ**でビルドできます（iOS 版は Xcode 16 以降が必要）。
+- macOS 14 (Sonoma) 以降。ローカルの Xcode 16 以降とXcodeGen 2.45.4を使用します。
 - `./build.sh` が `Scripts/fetch-vendor.sh` を呼び、llama.cpp の公式ビルド済み xcframework を `Vendor/` に取得します（タグ + SHA-256 でピン留め）。
 
 ## メンテナ向けドキュメントについて
@@ -55,3 +55,19 @@ Youyaku は「**音声認識も LLM 推論も既定でオンデバイス完結**
 ## 行動規範
 
 参加者は [行動規範（CODE_OF_CONDUCT.md）](CODE_OF_CONDUCT.md) に従ってください。
+
+## Repository workflow / リポジトリ運用
+
+Start from an up-to-date `main` (`git switch main` then `git pull --ff-only`).
+Use local Xcode for development and release preparation. Pull-request checks
+use unsigned builds (or an ad-hoc signature for local bundle checks), with no
+maintainer Apple Account, signing identity, or private credentials.
+
+Commit and push completed changes on a focused branch, then open a pull request
+using the shared template. For repository maintenance use
+`improve/repository-<message>`. Check website changes in Japanese and English
+at mobile, tablet, and desktop widths.
+
+Use `support@hinoshiba.com` for project contact information. Before publishing,
+check author/committer metadata and changed files for personal contact details,
+secrets, and generated artifacts. Preserve legally required third-party notices.

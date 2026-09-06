@@ -40,7 +40,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         NSMicrophoneUsageDescription: 音声入力のためにマイクを使用します。
-        NSSpeechRecognitionUsageDescription: 話した内容をテキストに変換するために音声認識を使用します。認識はすべてこの端末上で行われ、音声が外部に送信されることはありません。/ Converts your speech to text. All recognition happens on this device; audio never leaves it.
+        NSSpeechRecognitionUsageDescription: 話した内容をテキストに変換するために音声認識を使用します。/ Converts your speech to text.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:

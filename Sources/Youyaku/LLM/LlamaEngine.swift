@@ -125,12 +125,27 @@ final class LlamaEngine: @unchecked Sendable {
         // 既定は全レイヤーを GPU(Metal)へ。GPU 非搭載環境(CI ランナー等)や
         // 切り分け用に YOUYAKU_GPU_LAYERS で上書きできる(0 = CPU のみ)。
         // アプリの通常動作では未設定なので従来どおり -1。
+        var gpuLayers: Int32 = -1
         if let ov = ProcessInfo.processInfo.environment["YOUYAKU_GPU_LAYERS"], let n = Int32(ov) {
-            params.n_gpu_layers = n
-        } else {
-            params.n_gpu_layers = -1
+            gpuLayers = n
         }
-        guard let loaded = llama_model_load_from_file(path, params) else {
+        params.n_gpu_layers = gpuLayers
+
+        let loaded: OpaquePointer?
+        if gpuLayers == 0 {
+            // CPU のみ指定時は GPU デバイスの列挙自体を止める(NULL 終端のみ = 空リスト)。
+            // n_gpu_layers=0 でもコンテキスト作成はモデルの全デバイスにバックエンドを
+            // 作ろうとするため、Metal が初期化できない環境(CI ランナー等)では
+            // これが無いと llama_init_from_model が失敗する。
+            var noDevices: [OpaquePointer?] = [nil]
+            loaded = noDevices.withUnsafeMutableBufferPointer { buf -> OpaquePointer? in
+                params.devices = buf.baseAddress
+                return llama_model_load_from_file(path, params)
+            }
+        } else {
+            loaded = llama_model_load_from_file(path, params)
+        }
+        guard let loaded else {
             throw YouyakuError(tr("モデルの読み込みに失敗しました。ファイルが壊れている可能性があります。", "Failed to load the model. The file may be corrupted."))
         }
         model = loaded

@@ -15,78 +15,41 @@ iOS 版（`ios/`）を App Store で公開するための手順。macOS 版の�
 
 ---
 
-## 0. Xcode Cloud 初回接続（初回のみ）
+## 0. ローカルXcodeを準備
 
-App Store Connect の既存アプリ `Youyaku`（App ID `6788719460`、Bundle ID
-`com.hinoshiba.youyaku`）と Apple Developer Team `94HVVWXLK3` を使用する。署名はXcode Cloudの
-automatic signingに任せ、ローカルのApple Distribution証明書やprovisioning profileは使用しない。
-
-初回workflowだけはXcodeから作成する必要がある。`Youyaku.xcodeproj` はXcode Cloudが常に
-productを検出できるようリポジトリに含めている。XcodeのReport navigatorにあるCloud画面から
-`Youyaku` productを既存のApp Store Connectアプリへ接続する。
+App Store Connectの既存アプリと `ios/project.yml` のBundle IDを使用します。
+リリース担当者のMacにXcodeとXcodeGen 2.45.4を用意し、既存のApple Developer Teamを選びます。
+署名は承認済みの既存Apple Distribution identityを使用し、個人情報・証明書セレクター・
+秘密鍵・provisioning profileをリポジトリへ入れません。通常のビルドで署名identityを新規作成しません。
 
 ```bash
+./Scripts/fetch-vendor.sh --ios
 cd ios
+xcodegen generate
 open Youyaku.xcodeproj
 ```
 
-最初の接続buildでは、Xcodeが提案するworkflowを編集してActionを**Build**（Archiveではない）にし、
-`main`から1回実行する。release用scriptはタグなしArchiveを意図的に拒否する。productの登録が完了したら、
-この初期workflowを次のrelease設定へ変更する。
+## 1. バージョンとビルド番号を確定
 
-最初のbuildが完了したら、App Store Connectの **Youyaku → Xcode Cloud** でworkflowを次の値にする。
+`./Scripts/bump-version.sh X.Y.Z` で版数を同期し、`ios/project.yml` の
+`MARKETING_VERSION` と `CURRENT_PROJECT_VERSION` を確認します。
+App Store Connectで既にアップロードした同じversionのbuildより大きい番号を設定し、
+`xcodegen generate` 後のprojectと合わせてcommit・pushし、PRレビューを通します。
 
-- 名前: `Release`
-- General: **Restrict Editing**を有効にし、編集できる管理者をリリース担当者に限定する
-- Start Condition: **Tag Changes**、Custom Pattern `v*`
-- Auto-cancel Builds: **Off**（release tag buildを途中で取り消さない）
-- Action: **Archive**、Platform `iOS`、Scheme `Youyaku`
-- Deployment Preparation: **TestFlight and App Store**
-- TestFlightへの自動配布は、対象のinternal groupがある場合だけpost-actionとして追加する
+リリース対象はレビュー済みの `main` commitとし、`vX.Y.Z`タグで記録します。
+公開済みのタグは移動・再利用しません。タグをpushしてもアーカイブやアップロードは実行されません。
 
-`ios/ci_scripts/ci_post_clone.sh` が固定バージョンのllama.xcframeworkを用意する。
-`ci_pre_xcodebuild.sh` はplatform、scheme、Bundle ID、Team、タグ、`MARKETING_VERSION`を検証し、
-不一致ならbuildを停止して、`CI_BUILD_NUMBER`を`CURRENT_PROJECT_VERSION`へ設定する。
+## 2. ローカルでアーカイブし、Organizerから提出
 
-product登録後、App Store Connectの **Youyaku > Xcode Cloud > Settings > Build Number** で、
-**Next Build Number**を同じmarketing versionで過去にupload済みの最大値より大きくする。
-`ios/project.yml`の`CURRENT_PROJECT_VERSION`以上、かつApp Store Connectに同じmarketing versionで
-存在する最大buildより大きい値から開始する。新しいmarketing versionではiOSの組み合わせ要件上
-`1`からでもよいが、Cloud buildとcandidateを一意に追跡しやすいよう既存連番の継続を推奨する。
+1. 最新の `main` を取得し、レビュー済みcommit、タグ、version/buildを確認します。
+2. 固定版依存を取得してプロジェクトを再生成し、Xcodeで開きます。
+3. Schemeを `Youyaku`、実行先を **Any iOS Device (arm64)** にし、**Product > Archive** を選びます。
+4. OrganizerでBundle ID、Team、version/buildと使用する署名identityを確認します。
+5. リリース担当者が **Distribute App > App Store Connect** で検証・アップロードします。
+6. TestFlightで処理完了と対象version/buildを確認してから、App Store Connectで審査に提出します。
 
-GitHubではworkflowを有効にする前に、**Settings > Rules > Rulesets**でActiveなtag rulesetを作成する。
-対象patternを`v*`にし、**Restrict creations**、**Restrict updates**、**Restrict deletions**を有効にする。
-bypassは指定されたリリース担当者だけに限定し、review済みの`main` commitにだけtagを作成する。release tagは
-Xcode Cloudによる署名済みcandidateのbuild/uploadとmacOS版GitHub Releaseの起点になるため、移動・再利用しない。
-
----
-
-## 1. バージョンを上げる
-
-```bash
-./Scripts/bump-version.sh X.Y.Z
-```
-
-`ios/project.yml` の `MARKETING_VERSION`（表示バージョン）とローカル用の
-`CURRENT_PROJECT_VERSION`が更新される。Xcode CloudではCloud側の連番`CI_BUILD_NUMBER`を使用する。
-
-> Info.plist の版数は `project.yml` の変数（`$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`）を
-> 参照するため、`xcodegen generate` のたびに正しい値で再生成される。
-
----
-
-## 2. タグでアーカイブとアップロードを開始
-
-変更を`main`へmergeし、`MARKETING_VERSION`と同じ`vX.Y.Z`タグをそのmerge commitへ付けてpushする。
-
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-Xcode Cloudの`Release` workflowがarchive・automatic signing・App Store Connectへのuploadを行う。
-処理後、TestFlightでversion、Cloud build number、Bundle IDが意図した値であることを確認する。
-タグ名とversionが違う場合はbuildが失敗するため、誤ったタグを付け直して同じ版を上書きしない。
+アーカイブ、検証、アップロード、公開は別の操作です。PRのCIは署名なしのビルド確認だけを行います。
+アーカイブと書き出し成果物はリポジトリ外に保管してください。
 
 ---
 
@@ -114,7 +77,7 @@ iPhone + iPad 両対応（`TARGETED_DEVICE_FAMILY: "1,2"`）なので **両方�
 1. **音声入力（DictateView）** ← 1 枚目推奨。中央の大きなマイク＋整形結果が見える状態
 2. **モデル（ModelsView）** … 日本語モデルをワンタップ DL できるカタログ
 3. **履歴（HistoryView）** … 過去の入力を再利用
-4. **設定（SettingsView）** … オンデバイス処理・プライバシーの訴求
+4. **設定（SettingsView）** … 言語や出力方法の設定
 
 > **シミュレータ機種名は Xcode のバージョンで変わる**。`xcrun simctl boot "iPhone 16 Pro Max"` が
 > `Invalid device or device pair` で失敗する場合、その名前のシミュレータが無いだけ。下記①で
@@ -206,8 +169,8 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 - **概要案（骨子。4,000 字以内で肉付け）**:
   > Youyaku（ようやく）は、AIアシスタントへの指示を「声」で作るための音声入力アプリです。話した内容を、オンデバイスのローカルLLMが「AIに伝わる指示文」へ整えます。
   >
-  > ■ すべて端末内で完結
-  > 音声認識も文章整形も、すべてこの端末の中だけで動作します。音声もテキストも外部に送信されません（モデルのダウンロード時のみ Hugging Face に接続します）。
+  > ■ 声から文章へ
+  > 話した内容を読みやすい文章やAI向けの指示文に整え、コピーや共有で利用できます。
   >
   > ■ 主な機能
   > ・話すだけでフィラー（「えー」「あの」）や言い直しを除去し、構造化された指示文に再構成
@@ -223,9 +186,9 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 ### 3.3 その他の必須項目
 
-- **サポート URL**: `https://youyaku.hinoshiba.com/privacy.html#contact`
+- **サポート URL**: `https://youyaku.hinoshiba.com/#support`
 - **マーケティング URL**（任意）: `https://youyaku.hinoshiba.com/`
-- **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`
+- **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/#privacy`
 - **App のプライバシー（App Privacy）**: 「**データを収集していません（Data Not Collected）**」で申告。
   - 音声認識・整形はオンデバイス、履歴・設定は端末内保存で、開発者はデータを受け取らない。
   - モデル DL は Hugging Face への通信だが、開発者がユーザーデータを収集するわけではない。
@@ -264,15 +227,15 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 |---|---|
 | **2.1 パフォーマンス**: モデル DL 中にアプリが落ちる/固まる | 端末 RAM に対して大きすぎるモデルは DL 不可にしてある（`ModelsView` の RAM フィルタ）。審査は小さい 0.6B で試すよう Notes に明記。 |
 | **2.5.2 実行コードの DL** と誤解される | 上記 Review Notes で「重みデータであって実行コードではない」と説明。 |
-| **5.1.1 プライバシー**: ポリシー URL に到達できない | 審査前に `youyaku.hinoshiba.com`（GitHub Pages）が公開・到達可能で、`privacy.html` / `terms.html` が開けることを確認。 |
-| **2.3 誇大表現**: 「完全オンデバイス」の断定 | iOS は常時オンデバイスなので断定 OK。サイト/文言は既定設定の限定付きで統一済み。 |
+| **5.1.1 プライバシー**: ポリシー URL に到達できない | 審査前に `youyaku.hinoshiba.com`（GitHub Pages）が公開・到達可能で、`#privacy` / `#terms` / `#support` が開けることを確認。 |
+| **2.3 正確な説明** | 実際の機能と設定に沿った説明にし、通信や安全性の絶対的な保証を宣伝に使わない。 |
 | マイク/音声認識の usage description 不足 | `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` を設定済み（`project.yml`）。 |
 
 ---
 
 ## 6. 承認後
 
-- Xcode Cloudはbuildをuploadするところまでを担当し、App Reviewへの提出は自動実行しない。
+- ローカルXcode Organizerでアップロード済みのbuildを確認します。審査への提出はApp Store Connectで行います。
 - App Store Connectで正しいbuildを選択し、既存のrelease設定を確認してからレビューへ提出する。
 - 公開されると App Store の製品ページ（<https://apps.apple.com/jp/app/id6788719460>）が有効になる。
   サイト（`http_dist/index.html`）や README の iOS リンクがこの URL を指していることを確認する。
@@ -284,4 +247,4 @@ sips -g pixelWidth -g pixelHeight ~/Desktop/shots/iphone-1-dictate.png
 
 - App Store Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
 - App Privacy Details: https://developer.apple.com/app-store/app-privacy-details/
-- Xcode Cloud distribution: https://developer.apple.com/documentation/xcode/distributing-your-xcode-cloud-builds-through-testflight
+- Xcode distribution: https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases

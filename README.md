@@ -2,7 +2,7 @@
 
 **どのアプリでも `⌥Space` を押して話すだけ。ローカルLLMがあなたの言葉を、AIに伝わる指示文に整えます。**
 
-Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入力を音声で行うための macOS メニューバーアプリです。**追加インストール一切不要** — 推論エンジン(llama.cpp)を内蔵し、モデルはアプリ内から直接ダウンロード。音声認識も文章整形も既定設定では Mac の中で完結し、音声やテキストが外部に送信されることはありません(外部通信の全経路は後述の[プライバシー](#プライバシー)を参照)。
+Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命令入力を音声で行うための macOS メニューバーアプリです。**追加インストール一切不要** — 推論エンジン(llama.cpp)を内蔵し、モデルはアプリ内から直接ダウンロード。話した内容を整え、そのまま作業中のアプリへ貼り付けられます。
 
 ## 特徴
 
@@ -52,15 +52,9 @@ Youyaku は、AIアシスタント(Claude、ChatGPT、Copilot など)への命�
 
 ## プライバシー
 
-- 音声認識は既定でデバイス上で実行(「オンデバイス認識を優先」ON)。OFF にした場合のみ Apple のサーバー認識が使われ、音声が Apple に送信される
-- LLM 推論はアプリ内蔵エンジン(llama.cpp + Metal)でローカル実行
-- 外部通信の全経路は以下のみ。テレメトリ・分析・広告 SDK は一切なし
-  - モデルのダウンロード時: Hugging Face へ接続(IP アドレス・User-Agent 等が同社に送信される)
-  - Ollama 連携(任意設定): 有効にすると設定先ホストへ整形対象テキストを送信(既定はローカル 127.0.0.1。外部ホストも指定可)
-  - 更新チェック(macOS): youyaku.hinoshiba.com から更新情報(appcast.xml)のみを1日1回取得(設定でオフ可)
-  - アプリ内アップデート(macOS): 利用者が「アップデート」を選んだときだけ GitHub Releases から DMG を取得して適用(Sparkle。同意なしに更新は入らない)
-- 履歴・設定・モデルはすべて `~/Library/Application Support/Youyaku/` に保存され、ユーザーが削除可能
-- 詳細は配布サイトのプライバシーポリシー([http_dist/privacy.html](http_dist/privacy.html))を参照
+音声認識、保存される履歴、モデル取得、任意のOllama連携と更新確認については
+[プライバシーポリシー](https://youyaku.hinoshiba.com/#privacy)をご確認ください。
+
 
 ## iOS 版
 
@@ -114,7 +108,7 @@ Sources/Youyaku/
 メンテナ向けの署名・公証・配布・App Store 提出の手順は次にまとめています。
 
 - macOS(Developer ID 直販): [docs/RELEASE.md](docs/RELEASE.md)
-- iOS(App Store / Xcode Cloud): [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md)
+- iOS(App Store / ローカルXcode): [docs/RELEASE-iOS.md](docs/RELEASE-iOS.md)
 
 ## 貢献
 

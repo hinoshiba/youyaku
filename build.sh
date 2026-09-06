@@ -104,7 +104,7 @@ if [ "$MODE" = "dist" ]; then
         echo "   明示指定する場合: YOUYAKU_DIST_IDENTITY='Developer ID Application: 名前 (TEAMID)' ./build.sh --dist" >&2
         exit 1
     fi
-    echo "==> 配布署名(Developer ID + Hardened Runtime): $DIST_ID"
+    echo "==> 配布署名(Developer ID + Hardened Runtime)"
     # inside-out に署名する(埋め込みフレームワークの中の実行ファイル → フレームワーク → アプリ本体の順)。
     # Sparkle.framework は中に実行ファイル(Autoupdate)とアプリ(Updater.app)を抱えており、
     # 先にそれらを署名しないとフレームワークの署名が壊れる(公証も通らない)。
@@ -132,20 +132,10 @@ if [ "$MODE" = "dist" ]; then
     export YOUYAKU_DIST_IDENTITY="$DIST_ID"
     ./Scripts/make-dmg.sh "$APP"
 else
-    # 開発ビルド: ローカル署名証明書があればそれを使う(再ビルドしてもアクセシビリティ等の許可が維持される)。
-    # なければ ad-hoc 署名(再ビルドごとに許可の再設定が必要)
-    CERT_NAME="Youyaku Local Signing"
-    SIGN_KEYCHAIN="$HOME/Library/Keychains/youyaku-codesign.keychain-db"
-    SIGN_PASS_FILE="$HOME/.config/youyaku/keychain-pass"
-    SIGN_ID="-"
-    if [ -f "$SIGN_PASS_FILE" ] && security find-identity -v -p codesigning "$SIGN_KEYCHAIN" 2>/dev/null | grep -q "$CERT_NAME"; then
-        security unlock-keychain -p "$(cat "$SIGN_PASS_FILE")" "$SIGN_KEYCHAIN" 2>/dev/null || true
-        SIGN_ID="$CERT_NAME"
-        echo "==> 署名: $CERT_NAME(再ビルドしても許可が維持されます)"
-    else
-        echo "==> 署名: ad-hoc(再ビルドごとにアクセシビリティ許可の再設定が必要)"
-        echo "    恒久化するには一度だけ実行: ./Scripts/setup-signing.sh"
-    fi
+    # Credential-free by default. An already-installed development identity may
+    # be selected explicitly when stable local permissions are needed.
+    SIGN_ID="${YOUYAKU_DEV_IDENTITY:--}"
+    echo "==> 開発用署名"
     codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK/Versions/B/Autoupdate"
     codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK/Versions/B/Updater.app"
     codesign --force --sign "$SIGN_ID" "$SPARKLE_FRAMEWORK"

@@ -9,23 +9,17 @@ macOS 版 Youyaku を **Developer ID 直販（App Store 外）** で配布する
 
 ## リリース権限の保護
 
-`v*`タグの作成は、macOS配布物の公開とiOS版Xcode Cloud candidateのbuild/uploadを開始できる
-リリース権限として扱う。GitHubの **Settings > Rules > Rulesets** にActiveなtag rulesetを作り、
+`v*`タグはレビュー済みのリリースcommitを記録するものとして扱う。GitHubの **Settings > Rules > Rulesets** にActiveなtag rulesetを作り、
 対象patternを`v*`、rulesを **Restrict creations**、**Restrict updates**、**Restrict deletions** とする。
 bypassは指定されたリリース担当者だけに限定し、review済みの`main` commitにだけtagを作成する。
 一度公開したrelease tagは移動、削除、再利用せず、訂正時は新しいversionを使う。
 
-## macOS版をXcode Cloudへ移さない判断
+## ローカルXcodeによるリリース
 
-今回Xcode Cloudへ移行するのはiOS版だけで、macOS直販releaseは本書の署名用Macでの手順を維持する。
-macOS版は単なるArchiveではなく、SwiftPM製品のuniversal app組み立て、Developer ID署名、公証とstaple、
-DMG生成、Sparkle秘密鍵によるEdDSA署名、GitHub Releaseへのupload、`appcast.xml`の順序付き公開までが
-一つのrelease境界になっている。これをCloudへ移すにはmacOS用Xcode productの新設に加え、Sparkle秘密鍵と
-GitHub書込資格情報をCloudへ預け、DMGとappcastを原子的に公開する別設計が必要になる。
-
-Xcode CloudはDeveloper ID署名済みappを生成できるが、現在の更新経路全体を同じ安全性で置き換えるものではない。
-秘密情報と既存利用者の更新経路を拙速に広げないため、本対応ではローカル手順を削除しない。Cloud側のsecret管理、
-失敗時rollback、GitHub Release/appcastのatomic publishを別途設計・reviewできた時点で再評価する。
+macOS版は本書のローカルビルド・署名・公証手順、iOS版は
+[ローカルXcode Organizerでの提出手順](RELEASE-iOS.md)を使用します。
+タグのpushからiOSアーカイブやApp Store Connectへのアップロードを自動実行しません。
+GitHub Actionsは認証情報を必要としない検証とサイト配信を担当します。
 
 ## なぜ Mac App Store ではなく直販なのか
 
@@ -48,7 +42,7 @@ Youyaku の中核機能「`⌥Space` でどこでも呼び出し → 最前面�
 
 ### 2. Developer ID Application 証明書をキーチェーンに用意
 
-Xcode か Apple Developer サイトから **「Developer ID Application」** 証明書を作成し、ログインキーチェーンに取り込む。
+承認済みMacのキーチェーンにある既存の **Developer ID Application** identityを使用します。通常のビルドで新規作成や秘密鍵の書き出しは行いません。
 
 ```bash
 # 取り込めているか確認(1件だけ表示されるのが理想)
@@ -115,7 +109,7 @@ brew install gh && gh auth login
 ```
 
 - ルート `Info.plist` の `CFBundleShortVersionString` を書き換え、`CFBundleVersion` を +1 する。
-- `ios/project.yml` の `MARKETING_VERSION` / ローカル用`CURRENT_PROJECT_VERSION`も同期する（Xcode CloudのApp Store build numberはCloud側の連番を使用する）。
+- `ios/project.yml` の `MARKETING_VERSION` / ローカル用`CURRENT_PROJECT_VERSION`も同期する（App Store Connectの提出済みbuild番号を確認して重複を避ける）。
 - DMG のファイル名、リリースタグ `v<version>`、サイトの `version.txt`、`appcast.xml` の版数は
   すべてこの値を参照するため、**ビルド前に必ず実行**する。
 
@@ -125,8 +119,7 @@ brew install gh && gh auth login
 ./build.sh
 ```
 
-Developer ID 証明書は不要。ローカル自己署名証明書（`./Scripts/setup-signing.sh` で作成）があればそれを使い、
-なければ ad-hoc 署名になる。公証・DMG は行わない。
+既定ではcredential不要のad-hoc署名を使います。権限の継続が必要な場合だけ、既にインストールされた開発用identityを `YOUYAKU_DEV_IDENTITY` で明示指定できます。自動キーチェーン解除や鍵の作成は行いません。公証・DMGは配布ビルドで行います。
 
 ### 配布ビルド（署名 + DMG + 公証 + staple）
 
@@ -275,8 +268,7 @@ cp dist/Youyaku-X.Y.Z.dmg dist/Youyaku.dmg
 4. **Attach binaries** の欄へ `dist/Youyaku.dmg` をドラッグしてアップロードする。
 5. **Publish release**。
 
-`vX.Y.Z`タグのpushはiOS版のXcode Cloud `Release` workflowも開始する。タグのversionと
-`ios/project.yml`の`MARKETING_VERSION`が一致しない場合、iOS buildはfail-closedで停止する。
+iOS版は同じレビュー済みversionをローカルXcodeでアーカイブします。タグのpushだけでは提出されません。
 
 公開後、アセットが `Youyaku.dmg` として
 `https://github.com/hinoshiba/youyaku/releases/latest/download/Youyaku.dmg` から取得できることを確認する。
@@ -354,14 +346,12 @@ macOS 版は [Sparkle 2](https://sparkle-project.org/) を埋め込んでおり�
 App Store Connect へ提出する前に確認する:
 
 - [ ] **バージョン**: `Scripts/bump-version.sh` で macOS 側と同期済みか（`ios/project.yml` の `MARKETING_VERSION`）。
-- [ ] **Cloud build**: `vX.Y.Z`タグで開始したXcode Cloud buildが成功し、意図したversion/buildをTestFlightで確認したか。
+- [ ] **ローカルビルド**: Xcode Organizerから検証・アップロードし、意図したversion/buildをTestFlightで確認したか。
 - [ ] **アプリアイコン**: 1024x1024 のマーケティングアイコンを含む全サイズが揃っているか。
 - [ ] **スクリーンショット**: **iPhone と iPad の両方**（`TARGETED_DEVICE_FAMILY: "1,2"` のため iPad 分も必須）。
-- [ ] **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/privacy.html`
-- [ ] **サポート URL**: `https://youyaku.hinoshiba.com/privacy.html#contact`（サイトの問い合わせセクション）。
-      **提出前に privacy.html の問い合わせ先プレースホルダを実アドレスへ差し替えること**（デプロイ用 GitHub Actions が未設定のままの公開をブロックする）。
-- [ ] **App Privacy（プライバシー詳細）**: 「**データ収集なし**」で申告する
-      （音声認識・要約ともデバイス上で完結し、外部へデータを送信しないため）。
+- [ ] **プライバシーポリシー URL**: `https://youyaku.hinoshiba.com/#privacy`
+- [ ] **サポート URL**: `https://youyaku.hinoshiba.com/#support`（サイトの問い合わせセクション）。
+- [ ] **App Privacy（プライバシー詳細）**: 現在のアプリの挙動・設定・依存に合わせて申告し、サイトのポリシーと一致させる。
 - [ ] **年齢レーティング**: 新しい questionnaire（2025 年改定版）に回答する（Youyaku は該当コンテンツなしの想定）。
 - [ ] **EU DSA トレーダーステータス**: EU デジタルサービス法に基づくトレーダー申告
       （個人開発者なら non-trader / trader を選択し、trader の場合は連絡先住所等の公開が必要）。
@@ -374,7 +364,7 @@ App Store Connect へ提出する前に確認する:
       >
       > 試し方: 設定からモデル「Qwen3 0.6B」をダウンロードすると最速で要約機能を確認できます。
 - [ ] **サイトの公開確認**: 審査前に `https://youyaku.hinoshiba.com` が公開・到達可能で、
-      `privacy.html` / `terms.html` が開けることを確認する
+      `#privacy` / `#terms` / `#support` が開けることを確認する
       （プライバシーポリシー URL・サポート URL に審査担当者がアクセスできないとリジェクトされる）。
 
 ---
@@ -408,4 +398,4 @@ xcrun stapler validate dist/Youyaku-*.dmg
 
 ## 関連
 
-- 署名周り（TCC 永続化用のローカル自己署名証明書）は `Scripts/setup-signing.sh` を参照。
+- 開発用の署名は `YOUYAKU_DEV_IDENTITY` による既存identityの選択を使用します。`Scripts/setup-signing.sh` はidentityを作成する独立した管理用操作で、通常のビルド手順には含めません。

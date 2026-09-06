@@ -31,3 +31,28 @@ sparkle-private-key*.txt
 # ローカル環境変数
 .env*
 !.env.example
+
+# Local build, review, and signing output
+build/
+DerivedData/
+.swiftpm/
+*.xcarchive/
+*.xcresult/
+*.dSYM/
+*.ipa
+*.pkg
+*.profraw
+*.profdata
+*.log
+*.keychain*
+*.p12
+*.pfx
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.developerprofile
+*.certSigningRequest
+_site/
+__pycache__/

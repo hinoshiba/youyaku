@@ -8,6 +8,8 @@ cd "$(dirname "$0")"
 
 DEVICE="${1:-iPhone 16}"
 
+../Scripts/fetch-vendor.sh --ios
+
 echo "==> Xcode プロジェクトを生成(project.yml から)"
 xcodegen generate
 
